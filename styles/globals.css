@@ -1,6 +1,20 @@
 /* styles/globals.css */
 
 /* Estilos globales básicos */
+
+/* Estilos globales para etiquetas HTML */
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+h1 {
+  text-align: center;
+  margin-bottom: 1.5rem;
+}
+
+
 body {
   margin: 0;
   padding: 0;

@@ -16,7 +16,12 @@ export default function Market() {
     }
 
     try {
-      const res = await fetch(`https://west.albion-online-data.com/api/gameinfo/search/${term}`);
+      const encodedTerm = encodeURIComponent(term);
+      const res = await fetch(`https://west.albion-online-data.com/api/gameinfo/search?query=${encodedTerm}`);
+      if (!res.ok) {
+        throw new Error(`API Error: ${res.status}`);
+      }
+
       const data = await res.json();
       const filtered = data.filter((item) => item.UniqueName.includes('T') && !item.UniqueName.includes('QUESTITEM'));
       setItemResults(filtered.slice(0, 10));
@@ -52,7 +57,10 @@ export default function Market() {
       <ul className={styles.resultsList}>
         {itemResults.map((item) => (
           <li key={item.UniqueName} onClick={() => fetchPrices(item.UniqueName)}>
-            <img src={`https://render.albiononline.com/v1/item/${item.UniqueName}.png`} alt={item.LocalizedNames?.['ES-ES'] || item.UniqueName} />
+            <img
+              src={`https://render.albiononline.com/v1/item/${item.UniqueName}.png`}
+              alt={item.LocalizedNames?.['ES-ES'] || item.UniqueName}
+            />
             <span>{item.LocalizedNames?.['ES-ES'] || item.UniqueName}</span>
           </li>
         ))}

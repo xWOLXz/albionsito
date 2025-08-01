@@ -1,79 +1,94 @@
 // pages/index.js
-import Link from 'next/link';
+
+import { useEffect, useState } from 'react';
 import Image from 'next/image';
 
 export default function Home() {
+  const [items, setItems] = useState([]);
+  const [filteredItems, setFilteredItems] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [search, setSearch] = useState('');
+
+  const fetchItems = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch('/items.json');
+      const data = await res.json();
+
+      // Extraer todos los items dentro de items.items.shopcategories[*].shopsubcategory[*].shopsubcategory2[*]
+      const allItems = [];
+
+      data.items.shopcategories.forEach(category => {
+        category.shopsubcategory?.forEach(sub => {
+          sub.shopsubcategory2?.forEach(sub2 => {
+            allItems.push({
+              id: sub2['@id'],
+              name: sub2['@id'].replace(/_/g, ' '),
+              value: sub2['@value']
+            });
+          });
+        });
+      });
+
+      setItems(allItems);
+      setFilteredItems(allItems);
+    } catch (error) {
+      console.error('Error al cargar items:', error);
+    }
+    setLoading(false);
+  };
+
+  const handleSearch = (e) => {
+    const value = e.target.value.toLowerCase();
+    setSearch(value);
+    setFilteredItems(
+      items.filter(item => item.name.toLowerCase().includes(value))
+    );
+  };
+
+  useEffect(() => {
+    fetchItems();
+  }, []);
+
   return (
-    <div style={estilos.contenedor}>
-      <h1 style={estilos.titulo}>⚔️ Bienvenido a <span style={estilos.marca}>Albionsito</span> App</h1>
-      <p style={estilos.descripcion}>
-        Consulta el mercado en tiempo real, encuentra oportunidades de ganancia y domina el comercio en Albion Online.
-      </p>
+    <div>
+      <h1>Albionsito Market</h1>
+      <input
+        type="text"
+        placeholder="Buscar ítem..."
+        value={search}
+        onChange={handleSearch}
+        style={{ width: '100%', padding: '0.5rem', marginBottom: '1rem' }}
+      />
 
-      <div style={estilos.botones}>
-        <Link href="/market">
-          <button style={estilos.boton}>📊 Market General</button>
-        </Link>
-        <Link href="/top-ganancias">
-          <button style={estilos.boton}>💰 Top Ganancias</button>
-        </Link>
-        <Link href="/black-market">
-          <button style={estilos.boton}>🕶️ Black Market</button>
-        </Link>
-      </div>
-
-      <div style={{ marginTop: '3rem' }}>
-        <Image
-          src="/albion-loader.gif"
-          alt="Albionsito"
-          width={80}
-          height={80}
-        />
-        <p style={{ marginTop: '1rem', fontSize: '0.9rem', color: '#aaa' }}>
-          App conectada a las APIs oficiales y a Albion 2D.
-        </p>
-      </div>
+      {loading ? (
+        <div style={{ textAlign: 'center' }}>
+          <Image
+            src="/albion-loader.gif"
+            alt="Cargando..."
+            width={80}
+            height={80}
+          />
+          <p>Cargando ítems...</p>
+        </div>
+      ) : (
+        <table>
+          <thead>
+            <tr>
+              <th>Ítem</th>
+              <th>Valor</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredItems.map(item => (
+              <tr key={item.id}>
+                <td>{item.name}</td>
+                <td>{item.value}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
     </div>
   );
 }
-
-const estilos = {
-  contenedor: {
-    padding: '2rem',
-    fontFamily: 'Arial, sans-serif',
-    textAlign: 'center',
-    backgroundColor: '#111',
-    color: '#fff',
-    minHeight: '100vh',
-  },
-  titulo: {
-    fontSize: '2.5rem',
-    marginBottom: '1rem',
-  },
-  marca: {
-    color: '#ffcc00',
-  },
-  descripcion: {
-    fontSize: '1rem',
-    marginBottom: '2rem',
-    maxWidth: '600px',
-    margin: '0 auto 2rem',
-    lineHeight: '1.6',
-  },
-  botones: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '1rem',
-    alignItems: 'center',
-  },
-  boton: {
-    padding: '0.8rem 1.8rem',
-    fontSize: '1rem',
-    backgroundColor: '#222',
-    color: '#fff',
-    border: '2px solid #555',
-    borderRadius: '8px',
-    cursor: 'pointer',
-    transition: 'background-color 0.3s',
-  },
-};

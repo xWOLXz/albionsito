@@ -1,147 +1,117 @@
-import { useEffect, useState } from 'react';
+// pages/market.js
+import React, { useEffect, useState } from 'react';
 import axios from 'axios';
+import { RefreshCw } from 'lucide-react';
 
-const CITIES = ['Bridgewatch', 'Martlock', 'Thetford', 'Fort Sterling', 'Lymhurst', 'Brecilien'];
-const ITEM_TIERS = ['T4', 'T5', 'T6', 'T7', 'T8'];
-const ITEM_TYPES = ['BAG', 'CAPE', 'MAIN_SWORD', 'HEAD_CLOTH_SET1', 'ARMOR_CLOTH_SET1'];
+const CITIES = ['Bridgewatch', 'Martlock', 'Thetford', 'Fort Sterling', 'Lymhurst', 'Caerleon'];
+const IMAGE_URL = id => `https://render.albiononline.com/v1/item/${id}.png`;
+const API_URL = (itemId) =>
+  `https://www.albion-online-data.com/api/v2/stats/prices/${itemId}.json?locations=${CITIES.join(',')}`;
+
+const ITEMS = [
+  'T4_BAG', 'T5_BAG', 'T6_BAG', 'T7_BAG', 'T8_BAG',
+  'T4_CAPE', 'T5_CAPE', 'T6_CAPE', 'T7_CAPE', 'T8_CAPE',
+  'T4_MOUNT_HORSE', 'T5_MOUNT_HORSE', 'T6_MOUNT_OX',
+  'T4_MEAL_SOUP', 'T5_MEAL_SOUP', 'T6_MEAL_SOUP',
+  'T4_POTION_HEAL', 'T5_POTION_HEAL', 'T6_POTION_HEAL'
+];
 
 export default function Market() {
-  const [items, setItems] = useState([]);
-  const [displayedItems, setDisplayedItems] = useState([]);
-  const [search, setSearch] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [itemOffset, setItemOffset] = useState(0);
-  const itemsPerLoad = 20;
+  const [datos, setDatos] = useState([]);
+  const [cargando, setCargando] = useState(false);
 
-  useEffect(() => {
-    loadItems();
-  }, []);
+  const obtenerDatos = async () => {
+    setCargando(true);
+    const resultados = [];
 
-  useEffect(() => {
-    const filtered = items.filter(item =>
-      item.name.toLowerCase().includes(search.toLowerCase())
-    );
-    setDisplayedItems(filtered.slice(0, itemOffset + itemsPerLoad));
-  }, [search, items, itemOffset]);
+    for (const item of ITEMS) {
+      try {
+        const res = await axios.get(API_URL(item));
+        const precios = res.data;
 
-  const loadItems = async () => {
-    setLoading(true);
-    const newItems = [];
+        const minVenta = precios.reduce((acc, p) =>
+          p.sell_price_min > 0 && (acc.sell_price_min === 0 || p.sell_price_min < acc.sell_price_min) ? p : acc,
+          { sell_price_min: 0 }
+        );
 
-    for (const tier of ITEM_TIERS) {
-      for (const type of ITEM_TYPES) {
-        const itemId = `${tier}_${type}`;
-        try {
-          const response = await axios.get(`https://www.albion-online-data.com/api/v2/stats/prices/${itemId}.json?locations=${CITIES.join(',')}`);
-          const data = response.data;
+        const maxCompra = precios.reduce((acc, p) =>
+          p.buy_price_max > acc.buy_price_max ? p : acc,
+          { buy_price_max: 0 }
+        );
 
-          if (Array.isArray(data)) {
-            const sellOrders = data.filter(d => d.sell_price_min > 0);
-            const buyOrders = data.filter(d => d.buy_price_max > 0);
+        const ganancia = minVenta.sell_price_min - maxCompra.buy_price_max;
 
-            if (sellOrders.length > 0 && buyOrders.length > 0) {
-              const minSell = sellOrders.reduce((min, curr) =>
-                curr.sell_price_min < min.sell_price_min ? curr : min
-              );
-              const maxBuy = buyOrders.reduce((max, curr) =>
-                curr.buy_price_max > max.buy_price_max ? curr : max
-              );
-
-              const profit = maxBuy.buy_price_max - minSell.sell_price_min;
-              if (profit > 0) {
-                newItems.push({
-                  id: itemId,
-                  name: itemId.replace(/_/g, ' '),
-                  image: `https://render.albiononline.com/v1/item/${itemId}.png`,
-                  sell: minSell.sell_price_min,
-                  sellCity: minSell.city,
-                  buy: maxBuy.buy_price_max,
-                  buyCity: maxBuy.city,
-                  profit
-                });
-              }
-            }
-          }
-        } catch (error) {
-          console.error('Error fetching item:', itemId, error);
+        if (maxCompra.buy_price_max > 0 && minVenta.sell_price_min > 0 && ganancia > 0) {
+          resultados.push({
+            id: item,
+            nombre: item.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+            icono: IMAGE_URL(item),
+            venta: minVenta.sell_price_min,
+            ciudadVenta: minVenta.city,
+            compra: maxCompra.buy_price_max,
+            ciudadCompra: maxCompra.city,
+            ganancia
+          });
         }
+      } catch (err) {
+        console.error(`Error con ${item}:`, err.message);
       }
     }
 
-    // Ordenar por mayor ganancia
-    newItems.sort((a, b) => b.profit - a.profit);
-    setItems(newItems);
-    setDisplayedItems(newItems.slice(0, itemsPerLoad));
-    setItemOffset(0);
-    setLoading(false);
+    setDatos(resultados.sort((a, b) => b.ganancia - a.ganancia));
+    setCargando(false);
   };
 
-  const loadMore = () => {
-    const nextOffset = itemOffset + itemsPerLoad;
-    setItemOffset(nextOffset);
-    setDisplayedItems(items.slice(0, nextOffset + itemsPerLoad));
-  };
+  useEffect(() => {
+    obtenerDatos();
+  }, []);
 
   return (
-    <div style={{ background: '#111', minHeight: '100vh', color: 'white', padding: 20 }}>
-      <h1 style={{ textAlign: 'center', fontSize: 28 }}>Market General</h1>
-
-      <div style={{ display: 'flex', alignItems: 'center', marginBottom: 20 }}>
-        <button onClick={loadItems} style={{ marginRight: 10, background: 'none', border: 'none' }}>
-          <img src="/albion-loader.gif" alt="refresh" width={28} />
+    <div className="p-4">
+      <div className="flex items-center justify-between mb-4">
+        <h1 className="text-xl font-bold text-white">Market General</h1>
+        <button onClick={obtenerDatos} className="text-white hover:text-yellow-300 transition">
+          <RefreshCw />
         </button>
-        <input
-          type="text"
-          placeholder="Buscar item..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          style={{ padding: 5, width: '200px', borderRadius: 4 }}
-        />
       </div>
 
-      <div>
-        <table style={{ width: '100%', borderSpacing: 10 }}>
-          <thead>
-            <tr style={{ borderBottom: '1px solid gray' }}>
-              <th style={{ textAlign: 'left' }}>Item</th>
-              <th>Compra ↑</th>
-              <th>Venta ↓</th>
-              <th>Ganancia</th>
-            </tr>
-          </thead>
-          <tbody>
-            {displayedItems.map((item, index) => (
-              <tr key={index}>
-                <td style={{ display: 'flex', alignItems: 'center' }}>
-                  <img src={item.image} alt={item.name} width={50} height={50} style={{ marginRight: 10 }} />
-                  {item.name}
-                </td>
-                <td>
-                  {item.buy.toLocaleString()}<br /><small>{item.buyCity}</small>
-                </td>
-                <td>
-                  {item.sell.toLocaleString()}<br /><small>{item.sellCity}</small>
-                </td>
-                <td style={{ color: item.profit > 0 ? 'lightgreen' : 'white' }}>
-                  {item.profit.toLocaleString()}
-                </td>
+      {cargando ? (
+        <div className="flex justify-center items-center h-64">
+          <img src="/albion-loader.gif" alt="Cargando..." className="w-24 h-24" />
+        </div>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="min-w-full text-sm text-white">
+            <thead>
+              <tr className="bg-gray-800">
+                <th className="px-4 py-2 text-left">Ítem</th>
+                <th className="px-4 py-2 text-right">Compra ↑</th>
+                <th className="px-4 py-2 text-right">Venta ↓</th>
+                <th className="px-4 py-2 text-right">Ganancia</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-
-        {displayedItems.length < items.length && (
-          <div style={{ textAlign: 'center', margin: '20px 0' }}>
-            <button onClick={loadMore} style={{ padding: 10, background: '#333', color: 'white', border: 'none', borderRadius: 4 }}>
-              Cargar más
-            </button>
-          </div>
-        )}
-      </div>
-
-      {loading && (
-        <div style={{ textAlign: 'center', marginTop: 20 }}>
-          <img src="/albion-loader.gif" alt="Cargando..." width={60} />
+            </thead>
+            <tbody>
+              {datos.map((item, index) => (
+                <tr key={index} className="border-b border-gray-700 hover:bg-gray-800 transition">
+                  <td className="flex items-center gap-2 px-4 py-2">
+                    <img src={item.icono} alt={item.nombre} className="w-6 h-6" />
+                    {item.nombre}
+                  </td>
+                  <td className="px-4 py-2 text-right">
+                    {item.compra.toLocaleString()} <br />
+                    <span className="text-xs text-gray-400">{item.ciudadCompra}</span>
+                  </td>
+                  <td className="px-4 py-2 text-right">
+                    {item.venta.toLocaleString()} <br />
+                    <span className="text-xs text-gray-400">{item.ciudadVenta}</span>
+                  </td>
+                  <td className="px-4 py-2 text-right text-green-400">
+                    {item.ganancia.toLocaleString()}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
     </div>

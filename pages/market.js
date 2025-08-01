@@ -3,63 +3,74 @@ import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { RefreshCw } from 'lucide-react';
 
-const CITIES = ['Bridgewatch', 'Martlock', 'Thetford', 'Fort Sterling', 'Lymhurst', 'Caerleon'];
-const IMAGE_URL = id => `https://render.albiononline.com/v1/item/${id}.png`;
-const API_URL = (itemId) =>
-  `https://www.albion-online-data.com/api/v2/stats/prices/${itemId}.json?locations=${CITIES.join(',')}`;
+const API_URL = 'https://albionsito-backend.kevin.repl.co/precios'; // Replit API tuya
+const ITEM_NAMES_URL = 'https://raw.githubusercontent.com/ao-data/ao-bin-dumps/master/formatted/items.json';
 
-const ITEMS = [
-  'T4_BAG', 'T5_BAG', 'T6_BAG', 'T7_BAG', 'T8_BAG',
-  'T4_CAPE', 'T5_CAPE', 'T6_CAPE', 'T7_CAPE', 'T8_CAPE',
-  'T4_MOUNT_HORSE', 'T5_MOUNT_HORSE', 'T6_MOUNT_OX',
-  'T4_MEAL_SOUP', 'T5_MEAL_SOUP', 'T6_MEAL_SOUP',
-  'T4_POTION_HEAL', 'T5_POTION_HEAL', 'T6_POTION_HEAL'
-];
-
-export default function Market() {
+const Market = () => {
   const [datos, setDatos] = useState([]);
+  const [nombres, setNombres] = useState({});
   const [cargando, setCargando] = useState(false);
+
+  const getNombreItem = (itemId) => {
+    const entry = nombres[itemId];
+    return entry && entry.LocalizedNames && entry.LocalizedNames['ES-ES']
+      ? entry.LocalizedNames['ES-ES']
+      : itemId.replace(/_/g, ' ').toLowerCase();
+  };
 
   const obtenerDatos = async () => {
     setCargando(true);
-    const resultados = [];
+    try {
+      const [preciosRes, nombresRes] = await Promise.all([
+        axios.get(API_URL),
+        axios.get(ITEM_NAMES_URL),
+      ]);
 
-    for (const item of ITEMS) {
-      try {
-        const res = await axios.get(API_URL(item));
-        const precios = res.data;
+      const nombresMap = {};
+      nombresRes.data.forEach(item => {
+        if (item.UniqueName) {
+          nombresMap[item.UniqueName] = item;
+        }
+      });
+
+      setNombres(nombresMap);
+
+      const procesado = preciosRes.data.map(item => {
+        const precios = item.precios;
 
         const minVenta = precios.reduce((acc, p) =>
-          p.sell_price_min > 0 && (acc.sell_price_min === 0 || p.sell_price_min < acc.sell_price_min) ? p : acc,
-          { sell_price_min: 0 }
+          (p.sell_price_min > 0 && (acc.sell_price_min === 0 || p.sell_price_min < acc.sell_price_min)) ? p : acc
         );
 
         const maxCompra = precios.reduce((acc, p) =>
-          p.buy_price_max > acc.buy_price_max ? p : acc,
-          { buy_price_max: 0 }
+          (p.buy_price_max > acc.buy_price_max) ? p : acc
         );
 
         const ganancia = minVenta.sell_price_min - maxCompra.buy_price_max;
 
-        if (maxCompra.buy_price_max > 0 && minVenta.sell_price_min > 0 && ganancia > 0) {
-          resultados.push({
-            id: item,
-            nombre: item.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
-            icono: IMAGE_URL(item),
-            venta: minVenta.sell_price_min,
-            ciudadVenta: minVenta.city,
-            compra: maxCompra.buy_price_max,
-            ciudadCompra: maxCompra.city,
-            ganancia
-          });
-        }
-      } catch (err) {
-        console.error(`Error con ${item}:`, err.message);
-      }
-    }
+        return {
+          id: item.item,
+          nombre: getNombreItem(item.item),
+          icono: `https://render.albiononline.com/v1/item/${item.item}.png`,
+          ciudadVenta: minVenta.city,
+          ciudadCompra: maxCompra.city,
+          venta: minVenta.sell_price_min,
+          compra: maxCompra.buy_price_max,
+          ganancia
+        };
+      });
 
-    setDatos(resultados.sort((a, b) => b.ganancia - a.ganancia));
-    setCargando(false);
+      const ordenado = procesado
+        .filter(e => e.compra > 0 && e.venta > 0 && e.ganancia > 0)
+        .sort((a, b) => b.ganancia - a.ganancia)
+        .slice(0, 30);
+
+      setDatos(ordenado);
+    } catch (error) {
+      console.error('Error al obtener datos:', error);
+    } finally {
+      setCargando(false);
+    }
   };
 
   useEffect(() => {
@@ -116,4 +127,6 @@ export default function Market() {
       )}
     </div>
   );
-}
+};
+
+export default Market;

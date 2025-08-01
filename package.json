@@ -1,13 +1,17 @@
 {
   "name": "albionsito",
   "version": "1.0.0",
+  "type": "module",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "generar-items": "node ./scripts/generarItems.js"
   },
   "dependencies": {
-    "next": "^14.2.3",
+    "lucide-react": "^0.536.0",
+    "next": "14.2.3",
+    "node-fetch": "^3.3.2",
     "react": "^18.2.0",
     "react-dom": "^18.2.0"
   }

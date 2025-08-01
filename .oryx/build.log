@@ -1,0 +1,244 @@
+2025-08-01 01:10:46.5067|INFO|Microsoft.Oryx.BuildScriptGeneratorCli.CommandBase|Oryx command line: /usr/local/buildscriptgen/GenerateBuildScript.dll build --manifest-dir /workspaces/.oryx --property packagedir=/home/codespace/.local/lib/python3.12/site-packages --property python_version=3.12.1 --log-file /workspaces/.oryx/build.log /workspaces/albionsito
+2025-08-01 01:10:47.4322|DEBUG|Microsoft.Oryx.BuildScriptGenerator.DefaultBuildScriptGenerator|Available checkers: 5
+2025-08-01 01:10:48.5867|DEBUG|Microsoft.Oryx.Detector.Node.NodeDetector|Could not get version from package Json.
+2025-08-01 01:10:48.6650|DEBUG|Microsoft.Oryx.BuildScriptGenerator.Node.NodeSdkStorageVersionProvider|Getting list of available versions for platform nodejs.
+2025-08-01 01:10:49.3987|DEBUG|Microsoft.Oryx.BuildScriptGenerator.Node.NodeSdkStorageVersionProvider|Using the Sdk storage url https://oryx-cdn.microsoft.io.
+2025-08-01 01:10:49.4591|INFO|System.Net.Http.HttpClient.general.LogicalHandler|Start processing HTTP request GET https://oryx-cdn.microsoft.io/nodejs?restype=container&comp=list&include=metadata&marker=
+2025-08-01 01:10:49.4766|TRACE|System.Net.Http.HttpClient.general.LogicalHandler|Request Headers:
+User-Agent: oryx/1.0
+
+2025-08-01 01:10:49.5315|INFO|System.Net.Http.HttpClient.general.ClientHandler|Sending HTTP request GET https://oryx-cdn.microsoft.io/nodejs?restype=container&comp=list&include=metadata&marker=
+2025-08-01 01:10:49.5315|TRACE|System.Net.Http.HttpClient.general.ClientHandler|Request Headers:
+User-Agent: oryx/1.0
+
+2025-08-01 01:10:51.0951|INFO|System.Net.Http.HttpClient.general.ClientHandler|Received HTTP response headers after 1538.0653ms - 200
+2025-08-01 01:10:51.1024|TRACE|System.Net.Http.HttpClient.general.ClientHandler|Response Headers:
+Date: Fri, 01 Aug 2025 01:10:51 GMT
+Transfer-Encoding: chunked
+Connection: keep-alive
+x-ms-request-id: a098a517-001e-006d-3281-02faf1000000
+x-ms-version: 2009-09-19
+x-azure-ref: 20250801T011050Z-177d79df4c6hkn2whC1BN1mfqg00000001rg00000000mbu8
+X-Cache: CONFIG_NOCACHE
+Content-Type: application/xml
+
+2025-08-01 01:10:51.1066|INFO|System.Net.Http.HttpClient.general.LogicalHandler|End processing HTTP request after 1691.1645ms - 200
+2025-08-01 01:10:51.1066|TRACE|System.Net.Http.HttpClient.general.LogicalHandler|Response Headers:
+Date: Fri, 01 Aug 2025 01:10:51 GMT
+Transfer-Encoding: chunked
+Connection: keep-alive
+x-ms-request-id: a098a517-001e-006d-3281-02faf1000000
+x-ms-version: 2009-09-19
+x-azure-ref: 20250801T011050Z-177d79df4c6hkn2whC1BN1mfqg00000001rg00000000mbu8
+X-Cache: CONFIG_NOCACHE
+Content-Type: application/xml
+
+2025-08-01 01:10:51.3339|INFO|System.Net.Http.HttpClient.general.LogicalHandler|Start processing HTTP request GET https://oryx-cdn.microsoft.io/nodejs?restype=container&comp=list&include=metadata&marker=
+2025-08-01 01:10:51.3339|TRACE|System.Net.Http.HttpClient.general.LogicalHandler|Request Headers:
+User-Agent: oryx/1.0
+
+2025-08-01 01:10:51.3339|INFO|System.Net.Http.HttpClient.general.ClientHandler|Sending HTTP request GET https://oryx-cdn.microsoft.io/nodejs?restype=container&comp=list&include=metadata&marker=
+2025-08-01 01:10:51.3339|TRACE|System.Net.Http.HttpClient.general.ClientHandler|Request Headers:
+User-Agent: oryx/1.0
+
+2025-08-01 01:10:51.4206|INFO|System.Net.Http.HttpClient.general.ClientHandler|Received HTTP response headers after 86.1371ms - 200
+2025-08-01 01:10:51.4230|TRACE|System.Net.Http.HttpClient.general.ClientHandler|Response Headers:
+Date: Fri, 01 Aug 2025 01:10:51 GMT
+Transfer-Encoding: chunked
+Connection: keep-alive
+x-ms-request-id: a098a64c-001e-006d-4181-02faf1000000
+x-ms-version: 2009-09-19
+x-azure-ref: 20250801T011051Z-177d79df4c6hkn2whC1BN1mfqg00000001rg00000000mbvp
+X-Cache: CONFIG_NOCACHE
+Content-Type: application/xml
+
+2025-08-01 01:10:51.4230|INFO|System.Net.Http.HttpClient.general.LogicalHandler|End processing HTTP request after 89.4149ms - 200
+2025-08-01 01:10:51.4230|TRACE|System.Net.Http.HttpClient.general.LogicalHandler|Response Headers:
+Date: Fri, 01 Aug 2025 01:10:51 GMT
+Transfer-Encoding: chunked
+Connection: keep-alive
+x-ms-request-id: a098a64c-001e-006d-4181-02faf1000000
+x-ms-version: 2009-09-19
+x-azure-ref: 20250801T011051Z-177d79df4c6hkn2whC1BN1mfqg00000001rg00000000mbvp
+X-Cache: CONFIG_NOCACHE
+Content-Type: application/xml
+
+2025-08-01 01:10:51.6851|DEBUG|Microsoft.Oryx.BuildScriptGenerator.Node.NodeSdkStorageVersionProvider|Getting the default version from url https://oryx-cdn.microsoft.io/nodejs/defaultVersion.focal-scm.txt.
+2025-08-01 01:10:51.6889|INFO|System.Net.Http.HttpClient.general.LogicalHandler|Start processing HTTP request GET https://oryx-cdn.microsoft.io/nodejs/defaultVersion.focal-scm.txt
+2025-08-01 01:10:51.6889|TRACE|System.Net.Http.HttpClient.general.LogicalHandler|Request Headers:
+User-Agent: oryx/1.0
+
+2025-08-01 01:10:51.6899|INFO|System.Net.Http.HttpClient.general.ClientHandler|Sending HTTP request GET https://oryx-cdn.microsoft.io/nodejs/defaultVersion.focal-scm.txt
+2025-08-01 01:10:51.6899|TRACE|System.Net.Http.HttpClient.general.ClientHandler|Request Headers:
+User-Agent: oryx/1.0
+
+2025-08-01 01:10:51.6922|INFO|System.Net.Http.HttpClient.general.ClientHandler|Received HTTP response headers after 1.9257ms - 200
+2025-08-01 01:10:51.6922|TRACE|System.Net.Http.HttpClient.general.ClientHandler|Response Headers:
+Date: Fri, 01 Aug 2025 01:10:51 GMT
+Connection: keep-alive
+ETag: 0x8DDBEC0DCC4C9BB
+x-ms-request-id: 0a54de30-701e-003b-3f2a-02e5d0000000
+x-ms-version: 2009-09-19
+x-ms-meta-commit: 84b45c66a541d1ece5b990471d7c62d5018d8260
+x-ms-meta-checksum: c85e596dd551f631fd29c2e8c2fdbdec1af25653b49c2216a93f9697d481be4a9e3d03a74e5ae8cdd6ced9fb9b62cf3a7b4e83009b18b87ffc4215402e292614
+x-ms-meta-buildnumber: 20240221.1
+x-ms-meta-branch: refresh-node-version-feb24
+x-ms-lease-status: unlocked
+x-ms-blob-type: BlockBlob
+x-azure-ref: 20250801T011051Z-177d79df4c6hkn2whC1BN1mfqg00000001rg00000000mbwk
+X-Cache: TCP_HIT
+x-fd-int-roxy-purgeid: 84133770
+Accept-Ranges: bytes
+Content-Type: text/plain
+Content-Length: 3
+Last-Modified: Wed, 09 Jul 2025 08:16:10 GMT
+
+2025-08-01 01:10:51.6930|INFO|System.Net.Http.HttpClient.general.LogicalHandler|End processing HTTP request after 4.1308ms - 200
+2025-08-01 01:10:51.6930|TRACE|System.Net.Http.HttpClient.general.LogicalHandler|Response Headers:
+Date: Fri, 01 Aug 2025 01:10:51 GMT
+Connection: keep-alive
+ETag: 0x8DDBEC0DCC4C9BB
+x-ms-request-id: 0a54de30-701e-003b-3f2a-02e5d0000000
+x-ms-version: 2009-09-19
+x-ms-meta-commit: 84b45c66a541d1ece5b990471d7c62d5018d8260
+x-ms-meta-checksum: c85e596dd551f631fd29c2e8c2fdbdec1af25653b49c2216a93f9697d481be4a9e3d03a74e5ae8cdd6ced9fb9b62cf3a7b4e83009b18b87ffc4215402e292614
+x-ms-meta-buildnumber: 20240221.1
+x-ms-meta-branch: refresh-node-version-feb24
+x-ms-lease-status: unlocked
+x-ms-blob-type: BlockBlob
+x-azure-ref: 20250801T011051Z-177d79df4c6hkn2whC1BN1mfqg00000001rg00000000mbwk
+X-Cache: TCP_HIT
+x-fd-int-roxy-purgeid: 84133770
+Accept-Ranges: bytes
+Content-Type: text/plain
+Content-Length: 3
+Last-Modified: Wed, 09 Jul 2025 08:16:10 GMT
+
+2025-08-01 01:10:51.9523|DEBUG|Microsoft.Oryx.BuildScriptGenerator.Node.NodeSdkStorageVersionProvider|Got the default version for nodejs as 16.
+2025-08-01 01:10:51.9902|ERROR|Microsoft.Oryx.Detector.Python.PythonDetector|Cound not find 726571756972656d656e74732e747874 at the root of the repo. More information: https://aka.ms/requirements-not-found
+2025-08-01 01:10:51.9902|ERROR|Microsoft.Oryx.Detector.Python.PythonDetector|Missing setup.py at the root of the repo. More information: https://aka.ms/requirements-not-found
+2025-08-01 01:10:51.9902|ERROR|Microsoft.Oryx.Detector.Python.PythonDetector|Missing setup.py at the root of the repo. More information: https://aka.ms/requirements-not-found
+2025-08-01 01:10:51.9911|DEBUG|Microsoft.Oryx.Detector.Python.PythonDetector|Could not find file 'runtime.txt' in source repo
+2025-08-01 01:10:51.9934|INFO|Microsoft.Oryx.Detector.Python.PythonDetector|Could not find any file with extension '*.py' in the repo.
+2025-08-01 01:10:51.9953|DEBUG|Microsoft.Oryx.Detector.DotNetCore.ExplicitProjectFileProvider|No request to build a particular project file explicitly using the PROJECT environment variable
+2025-08-01 01:10:52.0062|DEBUG|Microsoft.Oryx.Detector.DotNetCore.ProbeAndFindProjectFileProvider|Could not find any files with extension 'csproj' in repo.
+2025-08-01 01:10:52.0095|DEBUG|Microsoft.Oryx.Detector.DotNetCore.ProbeAndFindProjectFileProvider|Could not find any files with extension 'fsproj' in repo.
+2025-08-01 01:10:52.0105|DEBUG|Microsoft.Oryx.Detector.Php.PhpDetector|File 'composer.json' does not exist in source repo
+2025-08-01 01:10:52.0115|INFO|Microsoft.Oryx.Detector.Php.PhpDetector|Could not find any file with extension '*.php' in the repo.
+2025-08-01 01:10:52.0143|DEBUG|Microsoft.Oryx.Detector.Ruby.RubyDetector|Could not find Gemfile in repo
+2025-08-01 01:10:52.0159|DEBUG|Microsoft.Oryx.Detector.Ruby.RubyDetector|Could not find typical Ruby files in repo
+2025-08-01 01:10:52.0159|DEBUG|Microsoft.Oryx.Detector.Ruby.RubyDetector|App in repo is not a Ruby app
+2025-08-01 01:10:52.0159|ERROR|Microsoft.Oryx.Detector.Golang.GolangDetector|Could not find go.mod in repo
+2025-08-01 01:10:52.0224|DEBUG|Microsoft.Oryx.Detector.Java.JavaDetector|Could not find any files with the following extensions in the repo: java, jsp
+2025-08-01 01:10:52.0332|DEBUG|Microsoft.Oryx.BuildScriptGenerator.Node.NodePlatform|Dynamic install is enabled.
+2025-08-01 01:10:52.0385|DEBUG|Microsoft.Oryx.BuildScriptGenerator.Node.NodePlatformInstaller|Version 16.20.2 was not found to be installed at /opt/nodejs/ or /opt/nodejs
+2025-08-01 01:10:52.0389|DEBUG|Microsoft.Oryx.BuildScriptGenerator.Node.NodePlatform|Node version 16.20.2 is not installed. So generating an installation script snippet for it.
+2025-08-01 01:10:52.0405|WARN|Microsoft.Oryx.BuildScriptGenerator.Node.NodePlatformInstaller|Environment variable 'ORYX_SDK_STORAGE_BACKUP_BASE_URL' for Backup SDK storage base URL is not set.
+2025-08-01 01:10:52.0498|INFO|Microsoft.Oryx.BuildScriptGenerator.DefaultBuildScriptGenerator|If nodejs is not set as environment, it'll be set to 16.20.2 via benv
+2025-08-01 01:10:52.0548|DEBUG|Microsoft.Oryx.BuildScriptGenerator.DefaultCompatiblePlatformDetector|Detecting platform using 'nodejs'...
+2025-08-01 01:10:52.0644|DEBUG|Microsoft.Oryx.BuildScriptGenerator.DefaultCompatiblePlatformDetector|Detected platform 'nodejs' with version '16.20.2'.
+2025-08-01 01:10:52.0666|DEBUG|Microsoft.Oryx.BuildScriptGenerator.DefaultBuildScriptGenerator|Repo is clean for nodejs
+2025-08-01 01:10:52.0765|INFO|Microsoft.Oryx.BuildScriptGenerator.Node.NodePlatform|Using npm
+2025-08-01 01:10:52.3794|INFO|Microsoft.Oryx.BuildScriptGenerator.Node.NodePlatform|Detected the following frameworks: Next.js
+2025-08-01 01:10:52.6733|DEBUG|Microsoft.Oryx.BuildScriptGenerator.DefaultBuildScriptGenerator|Platform nodejs with version 16.20.2 was used.
+2025-08-01 01:10:52.6733|DEBUG|Microsoft.Oryx.BuildScriptGenerator.DefaultBuildScriptGenerator|Running checkers
+2025-08-01 01:10:52.6758|INFO|Microsoft.Oryx.BuildScriptGenerator.DefaultBuildScriptGenerator|Running 0 applicable checkers for 1 tools: nodejs
+2025-08-01 01:10:52.6873|INFO|Microsoft.Oryx.BuildScriptGenerator.DefaultBuildScriptGenerator|Build Property Key:PlatformName value: nodejs is written into manifest
+2025-08-01 01:10:52.7141|DEBUG|Microsoft.Oryx.BuildScriptGenerator.DefaultBuildScriptGenerator|Path to appsvc.yaml /workspaces/albionsito/appsvc.yaml
+2025-08-01 01:10:52.7141|DEBUG|Microsoft.Oryx.BuildScriptGenerator.DefaultBuildScriptGenerator|No appsvc.yaml found
+2025-08-01 01:10:52.7311|DEBUG|Microsoft.Oryx.BuildScriptGeneratorCli.BuildCommand|No checker messages emitted
+2025-08-01 01:11:43.6695|ERROR|Microsoft.Oryx.BuildScriptGeneratorCli.BuildCommand|Error running build script (1/1):
+
+Source directory     : /workspaces/albionsito
+Destination directory: /workspaces/albionsito
+
+
+Downloading and extracting 'nodejs' version '16.20.2' to '/opt/nodejs/16.20.2'...
+Detected image debian flavor: focal-scm.
+Downloaded in 2 sec(s).
+Verifying checksum...
+Extracting contents...
+performing sha512 checksum for: nodejs...
+Done in 4 sec(s).
+
+image detector file exists, platform is nodejs..
+Removing existing manifest file
+Creating directory for command manifest file if it does not exist
+Creating a manifest file...
+Node Build Command Manifest file created.
+
+Using Node version:
+v16.20.2
+
+Using Npm version:
+8.19.4
+
+Running 'npm install'...
+
+npm WARN EBADENGINE Unsupported engine {
+npm WARN EBADENGINE   package: 'next@14.2.3',
+npm WARN EBADENGINE   required: { node: '>=18.17.0' },
+npm WARN EBADENGINE   current: { node: 'v16.20.2', npm: '8.19.4' }
+npm WARN EBADENGINE }
+
+added 22 packages, and audited 23 packages in 22s
+
+3 packages are looking for funding
+  run `npm fund` for details
+
+1 critical severity vulnerability
+
+To address all issues, run:
+  npm audit fix
+
+Run `npm audit` for details.
+npm notice 
+npm notice New major version of npm available! 8.19.4 -> 11.5.2
+npm notice Changelog: <https://github.com/npm/cli/releases/tag/v11.5.2>
+npm notice Run `npm install -g npm@11.5.2` to update!
+npm notice 
+
+Running 'npm run build'...
+
+
+> albionsito@1.0.0 build
+> next build
+
+Attention: Next.js now collects completely anonymous telemetry regarding usage.
+This information is used to shape Next.js' roadmap and prioritize features.
+You can learn more, including how to opt-out if you'd not like to participate in this anonymous program, by visiting the following URL:
+https://nextjs.org/telemetry
+
+  ▲ Next.js 14.2.3
+
+   Linting and checking validity of types ...
+   Creating an optimized production build ...
+<w> [webpack.cache.PackFileCacheStrategy] Skipped not serializable cache item 'Compilation/modules|/workspaces/albionsito/node_modules/next/dist/build/webpack/loaders/css-loader/src/index.js??ruleSet[1].rules[6].oneOf[9].use[0]!/workspaces/albionsito/node_modules/next/dist/build/webpack/loaders/postcss-loader/src/index.js??ruleSet[1].rules[6].oneOf[9].use[1]!/workspaces/albionsito/styles/Market.module.css': No serializer registered for CssSyntaxError
+<w> while serializing webpack/lib/cache/PackFileCacheStrategy.PackContentItems -> webpack/lib/NormalModule -> webpack/lib/ModuleBuildError -> CssSyntaxError
+<w> [webpack.cache.PackFileCacheStrategy] Skipped not serializable cache item 'Compilation/modules|/workspaces/albionsito/node_modules/next/dist/build/webpack/loaders/css-loader/src/index.js??ruleSet[1].rules[6].oneOf[9].use[0]!/workspaces/albionsito/node_modules/next/dist/build/webpack/loaders/postcss-loader/src/index.js??ruleSet[1].rules[6].oneOf[9].use[1]!/workspaces/albionsito/styles/TopGanancias.module.css': No serializer registered for CssSyntaxError
+<w> while serializing webpack/lib/cache/PackFileCacheStrategy.PackContentItems -> webpack/lib/NormalModule -> webpack/lib/ModuleBuildError -> CssSyntaxError
+Failed to compile.
+
+./styles/Market.module.css:35:1
+Syntax error: Selector "table" is not pure (pure selectors must contain at least one local class or id)
+
+  33 |   margin-top: 20px;
+  34 | }
+> 35 | table {
+     | ^
+  36 |   width: 100%;
+  37 |   border-collapse: collapse;
+
+./styles/TopGanancias.module.css:8:1
+Syntax error: Selector "h1" is not pure (pure selectors must contain at least one local class or id)
+
+   6 | }
+   7 | 
+>  8 | h1 {
+     | ^
+   9 |   text-align: center;
+  10 |   margin-bottom: 1.5rem;
+
+
+> Build failed because of webpack errors
+

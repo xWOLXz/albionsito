@@ -24,11 +24,13 @@ export default function Market() {
   const obtenerPrecio = async (itemId, index) => {
     try {
       const res = await axios.get(`/api/precios?itemId=${itemId}`);
-      const nuevos = [...items];
-      nuevos[index].precios = res.data;
-      setItems(nuevos);
+      setItems((prev) => {
+        const actualizados = [...prev];
+        actualizados[index].precios = res.data;
+        return actualizados;
+      });
     } catch (error) {
-      console.error('Error al obtener precios de', itemId);
+      console.error(`Error al obtener precios de ${itemId}:`, error.message);
     }
   };
 
@@ -37,16 +39,16 @@ export default function Market() {
   }, [pagina]);
 
   useEffect(() => {
-    items.forEach((item, i) => {
+    items.forEach((item, index) => {
       if (!item.precios) {
-        obtenerPrecio(item.UniqueName, i);
+        obtenerPrecio(item.UniqueName, index);
       }
     });
   }, [items]);
 
-  const itemsFiltrados = items?.filter((item) =>
+  const itemsParaMostrar = items.filter((item) =>
     item.LocalizedNames?.['ES-ES']?.toLowerCase().includes(busqueda.toLowerCase())
-  ) || [];
+  );
 
   return (
     <div className="p-4 text-white">
@@ -64,15 +66,16 @@ export default function Market() {
         <p className="text-center">Cargando ítems...</p>
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-          {itemsFiltrados.map((item, index) => (
+          {itemsParaMostrar.map((item, index) => (
             <div key={item.UniqueName} className="bg-gray-900 p-3 rounded-lg text-center">
               <img
                 src={`https://render.albiononline.com/v1/item/${item.UniqueName}.png`}
                 alt={item.LocalizedNames?.['ES-ES']}
                 className="w-16 h-16 mx-auto"
               />
-              <h2 className="text-sm font-semibold mt-2">{item.LocalizedNames?.['ES-ES']}</h2>
-
+              <h2 className="text-sm font-semibold mt-2">
+                {item.LocalizedNames?.['ES-ES']}
+              </h2>
               {item.precios ? (
                 <div className="text-xs mt-1">
                   <p>🛒 Vender: {item.precios.sell?.price.toLocaleString()} ({item.precios.sell?.city})</p>
@@ -90,7 +93,7 @@ export default function Market() {
       <div className="flex justify-center gap-2 mt-6">
         <button
           className="px-4 py-1 bg-gray-700 rounded disabled:opacity-30"
-          onClick={() => setPagina(p => Math.max(p - 1, 1))}
+          onClick={() => setPagina((p) => Math.max(p - 1, 1))}
           disabled={pagina === 1}
         >
           ← Anterior
@@ -98,7 +101,7 @@ export default function Market() {
         <span className="px-4 py-1">Página {pagina} de {totalPaginas}</span>
         <button
           className="px-4 py-1 bg-gray-700 rounded disabled:opacity-30"
-          onClick={() => setPagina(p => Math.min(p + 1, totalPaginas))}
+          onClick={() => setPagina((p) => Math.min(p + 1, totalPaginas))}
           disabled={pagina === totalPaginas}
         >
           Siguiente →

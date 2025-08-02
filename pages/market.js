@@ -11,18 +11,36 @@ const Market = () => {
   const obtenerItems = async () => {
     try {
       setLoading(true);
-      const res = await axios.get(`/api/items?page=${pagina}&nocache=${Date.now()}`);
-      if (res.data && Array.isArray(res.data.items)) {
-        setItems(res.data.items);
-        setTotalPaginas(res.data.totalPages || 1);
-      } else {
-        setItems([]);
-        setTotalPaginas(1);
-      }
+      const res = await axios.get(`https://albionsito-backend.onrender.com/items?page=${pagina}&nocache=${Date.now()}`);
+      const itemsAPI = res.data.items || [];
+      const totalPages = res.data.totalPages || 1;
+
+      // Enriquecer cada item con nombre, icono y precios
+      const itemsConDatos = await Promise.all(itemsAPI.map(async (item) => {
+        const name = item.LocalizedNames?.["ES-ES"] || item.UniqueName || 'Sin nombre';
+        const icon = `https://render.albiononline.com/v1/item/${item.UniqueName}.png`;
+
+        let precios = { buy: null, sell: null, margen: 0 };
+        try {
+          const r = await axios.get(`https://albionsito-backend.onrender.com/precios?itemId=${item.UniqueName}`);
+          precios = r.data;
+        } catch (error) {
+          console.warn(`Error precios de ${item.UniqueName}`);
+        }
+
+        return {
+          id: item.Index,
+          name,
+          icon,
+          ...precios
+        };
+      }));
+
+      setItems(itemsConDatos);
+      setTotalPaginas(totalPages);
     } catch (err) {
       console.error('Error al obtener ítems:', err.message);
       setItems([]);
-      setTotalPaginas(1);
     } finally {
       setLoading(false);
     }

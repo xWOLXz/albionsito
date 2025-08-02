@@ -12,12 +12,16 @@ export default function Market() {
       const res = await fetch('https://albionsito-backend.onrender.com/items');
       const data = await res.json();
 
-      // 🧠 Flatten XML-style object to array of item objects
-      const rawItems = data.items.shopcategories.flatMap((cat) =>
-        cat.shopsubcategory2.flatMap((sub) => sub)
-      );
+      // Verifica que exista el array
+      const categories = data.items?.shopcategories?.shopcategory || [];
 
-      setItems(rawItems);
+      // Extrae todos los items reales de cada subcategoría
+      const extractedItems = categories.flatMap((cat) => {
+        const subs = cat.shopsubcategory2?.shopsubcategory || [];
+        return subs.flatMap((sub) => sub.item || []);
+      });
+
+      setItems(extractedItems);
     } catch (error) {
       console.error('Error cargando items:', error);
     } finally {

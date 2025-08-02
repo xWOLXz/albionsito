@@ -6,26 +6,16 @@ export default function Market() {
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
 
-  const ensureArray = (value) => {
-    if (Array.isArray(value)) return value;
-    if (value === undefined || value === null) return [];
-    return [value];
-  };
-
   const fetchItems = async () => {
     setLoading(true);
     try {
       const res = await fetch('https://albionsito-backend.onrender.com/items');
       const data = await res.json();
 
-      const categories = ensureArray(data.items?.shopcategories?.shopcategory);
+      // Si data es un array directo (como el JSON actual), lo asignamos directo
+      const itemArray = Array.isArray(data) ? data : [];
 
-      const extractedItems = categories.flatMap((cat) => {
-        const subcategories = ensureArray(cat.shopsubcategory2?.shopsubcategory);
-        return subcategories.flatMap((sub) => ensureArray(sub.item));
-      });
-
-      setItems(extractedItems);
+      setItems(itemArray);
     } catch (error) {
       console.error('Error cargando items:', error);
     } finally {
@@ -38,7 +28,7 @@ export default function Market() {
   }, []);
 
   const filteredItems = items.filter((item) =>
-    item['@eid']?.toLowerCase().includes(search.toLowerCase())
+    item.UniqueName?.toLowerCase().includes(search.toLowerCase())
   );
 
   return (
@@ -64,14 +54,14 @@ export default function Market() {
           <thead>
             <tr>
               <th style={{ textAlign: 'left', padding: '0.5rem' }}>Item</th>
-              <th style={{ textAlign: 'left', padding: '0.5rem' }}>Valor</th>
+              <th style={{ textAlign: 'left', padding: '0.5rem' }}>Nombre</th>
             </tr>
           </thead>
           <tbody>
             {filteredItems.map((item, idx) => (
               <tr key={idx}>
-                <td style={{ padding: '0.5rem' }}>{item['@eid']}</td>
-                <td style={{ padding: '0.5rem' }}>{item['@value']}</td>
+                <td style={{ padding: '0.5rem' }}>{item.UniqueName}</td>
+                <td style={{ padding: '0.5rem' }}>{item.LocalizedNames?.ES || 'Sin nombre'}</td>
               </tr>
             ))}
           </tbody>
@@ -79,4 +69,4 @@ export default function Market() {
       )}
     </div>
   );
-}
+          }

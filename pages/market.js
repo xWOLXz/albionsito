@@ -1,19 +1,16 @@
-import { useEffect, useState } from 'react';
-import Image from 'next/image';
+import { useState, useEffect } from 'react';
 
-export default function MarketPage() {
+export default function Market() {
   const [items, setItems] = useState([]);
-  const [filteredItems, setFilteredItems] = useState([]);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [search, setSearch] = useState('');
+  const [loading, setLoading] = useState(true);
 
   const fetchItems = async () => {
-    setLoading(true);
     try {
-      const response = await fetch('https://albionsito-backend.onrender.com/items');
-      const data = await response.json();
+      setLoading(true);
+      const res = await fetch('https://albionsito-backend.onrender.com/items');
+      const data = await res.json();
       setItems(data);
-      setFilteredItems(data);
     } catch (error) {
       console.error('Error cargando ítems:', error);
     } finally {
@@ -25,28 +22,25 @@ export default function MarketPage() {
     fetchItems();
   }, []);
 
-  const handleSearch = (e) => {
-    const term = e.target.value.toLowerCase();
-    setSearchTerm(term);
-    const filtered = items.filter(item =>
-      item.nombre.toLowerCase().includes(term)
-    );
-    setFilteredItems(filtered);
-  };
+  const filteredItems = items.filter((item) =>
+    item.nombre.toLowerCase().includes(search.toLowerCase())
+  );
 
   return (
-    <main className="p-4">
-      <div className="flex items-center justify-between mb-4">
+    <div className="p-4">
+      <h1 className="text-xl font-bold mb-4 text-center">Market General</h1>
+
+      <div className="flex justify-between items-center mb-4">
         <input
           type="text"
-          value={searchTerm}
-          onChange={handleSearch}
           placeholder="Buscar ítem..."
-          className="p-2 rounded-md border w-full max-w-md text-black"
+          className="p-2 border border-gray-400 rounded w-full max-w-xs"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
         />
         <button
           onClick={fetchItems}
-          className="ml-2 p-2 bg-gray-800 hover:bg-gray-700 rounded-md"
+          className="ml-4 p-2 rounded-full bg-yellow-500 hover:bg-yellow-600 text-white"
           title="Actualizar"
         >
           🔄
@@ -54,25 +48,27 @@ export default function MarketPage() {
       </div>
 
       {loading ? (
-        <div className="flex justify-center items-center h-32">
-          <Image src="/albion-loader.gif" alt="Cargando..." width={100} height={100} />
+        <div className="flex justify-center items-center">
+          <img src="/albion-loader.gif" alt="Cargando..." className="w-16 h-16" />
         </div>
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
           {filteredItems.map((item) => (
-            <div key={item.id} className="bg-gray-800 rounded-xl p-2 shadow hover:scale-105 transition-all">
-              <Image
+            <div
+              key={item.id}
+              className="bg-gray-800 p-3 rounded shadow flex flex-col items-center text-center"
+            >
+              <img
                 src={item.imagen}
                 alt={item.nombre}
-                width={80}
-                height={80}
-                className="mx-auto"
+                className="w-14 h-14 mb-2"
+                loading="lazy"
               />
-              <p className="mt-2 text-center text-sm">{item.nombre}</p>
+              <span className="text-sm text-white">{item.nombre}</span>
             </div>
           ))}
         </div>
       )}
-    </main>
+    </div>
   );
-            }
+                  }

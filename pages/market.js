@@ -1,102 +1,135 @@
-import React, { useEffect, useState } from 'react';
-import axios from 'axios';
+import React, { useState, useEffect } from 'react';
 
 const Market = () => {
   const [items, setItems] = useState([]);
-  const [pagina, setPagina] = useState(1);
-  const [totalPaginas, setTotalPaginas] = useState(1);
-  const [busqueda, setBusqueda] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filteredItems, setFilteredItems] = useState([]);
+  const [selectedItem, setSelectedItem] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [precios, setPrecios] = useState(null);
 
-  const obtenerItems = async () => {
-    try {
-      setLoading(true);
-      const res = await axios.get(`https://albionsito-backend.onrender.com/items?page=${pagina}&nocache=${Date.now()}`);
-      const itemsAPI = res.data.items || [];
-      const totalPages = res.data.totalPages || 1;
-
-      // Enriquecer cada item con nombre, icono y precios
-      const itemsConDatos = await Promise.all(itemsAPI.map(async (item) => {
-        const name = item.LocalizedNames?.["ES-ES"] || item.UniqueName || 'Sin nombre';
-        const icon = `https://render.albiononline.com/v1/item/${item.UniqueName}.png`;
-
-        let precios = { buy: null, sell: null, margen: 0 };
-        try {
-          const r = await axios.get(`https://albionsito-backend.onrender.com/precios?itemId=${item.UniqueName}`);
-          precios = r.data;
-        } catch (error) {
-          console.warn(`Error precios de ${item.UniqueName}`);
-        }
-
-        return {
-          id: item.Index,
-          name,
-          icon,
-          ...precios
-        };
-      }));
-
-      setItems(itemsConDatos);
-      setTotalPaginas(totalPages);
-    } catch (err) {
-      console.error('Error al obtener ítems:', err.message);
-      setItems([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
+  // 1. Carga básica de ítems solo para búsqueda
   useEffect(() => {
-    obtenerItems();
-  }, [pagina]);
+    const fetchItems = async () => {
+      try {
+        const res = await fetch('https://albionsito-backend.onrender.com/items?page=1');
+        const data = await res.json();
+        setItems(data.items);
+        setFilteredItems(data.items);
+      } catch (err) {
+        console.error('Error al cargar ítems:', err);
+      }
+    };
+    fetchItems();
+  }, []);
 
-  const buscar = (e) => {
-    setBusqueda(e.target.value.toLowerCase());
+  // 2. Filtrar mientras escribe
+  useEffect(() => {
+    const results = items.filter(item =>
+      item.LocalizedNames?.['ES-ES']?.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+    setFilteredItems(results);
+  }, [searchTerm, items]);
+
+  // 3. Cargar precios al hacer clic en un ítem
+  const handleItemClick = async (item) => {
+    setSelectedItem(item);
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/precios?id=${item.UniqueName}`);
+      const data = await res.json();
+      setPrecios(data);
+    } catch (err) {
+      console.error('Error al cargar precios del ítem:', err);
+    }
+    setLoading(false);
   };
 
-  const filtrados = items.filter((item) =>
-    item.name.toLowerCase().includes(busqueda)
-  );
+  // 4. Obtener nombre español
+  const getName = (item) => item.LocalizedNames?.['ES-ES'] || item.LocalizedNames?.['EN-US'] || 'Sin nombre';
 
   return (
-    <div style={{ padding: '20px', background: '#111', color: 'white', minHeight: '100vh' }}>
-      <h1 style={{ fontSize: '28px', textAlign: 'center' }}>Mercado General</h1>
+    <div style={{ padding: '20px' }}>
+      <h1 style={{ textAlign: 'center', fontSize: '2rem', marginBottom: '20px' }}>Mercado General</h1>
 
       <input
         type="text"
-        placeholder="Buscar item..."
-        value={busqueda}
-        onChange={buscar}
-        style={{ padding: '8px', marginBottom: '20px', width: '100%' }}
+        placeholder="Buscar ítem..."
+        value={searchTerm}
+        onChange={(e) => setSearchTerm(e.target.value)}
+        style={{
+          width: '100%',
+          padding: '10px',
+          fontSize: '16px',
+          borderRadius: '8px',
+          border: '1px solid #ccc',
+          marginBottom: '30px',
+        }}
       />
 
-      {loading ? (
-        <p>Cargando ítems...</p>
-      ) : filtrados.length === 0 ? (
-        <p>No se encontraron ítems.</p>
-      ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px' }}>
-          {filtrados.map((item) => (
-            <div key={item.id} style={{ background: '#222', padding: '15px', borderRadius: '10px' }}>
-              <img src={item.icon} alt={item.name} style={{ width: '64px', height: '64px' }} />
-              <h3 style={{ fontSize: '16px' }}>{item.name}</h3>
-              <p>🟢 Compra: {item.buy?.price ?? 'N/D'} ({item.buy?.city ?? '-'})</p>
-              <p>🔴 Venta: {item.sell?.price ?? 'N/D'} ({item.sell?.city ?? '-'})</p>
-              <p>💰 Margen: {item.margen ?? 0}</p>
+      {!selectedItem ? (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '20px' }}>
+          {filteredItems.map((item) => (
+            <div
+              key={item.UniqueName}
+              style={{
+                background: '#222',
+                padding: '10px',
+                borderRadius: '10px',
+                textAlign: 'center',
+                cursor: 'pointer',
+              }}
+              onClick={() => handleItemClick(item)}
+            >
+              <img
+                src={`https://render.albiononline.com/v1/item/${item.UniqueName}.png`}
+                alt={getName(item)}
+                style={{ width: '80px', height: '80px' }}
+              />
+              <div style={{ color: 'white', marginTop: '10px' }}>{getName(item)}</div>
             </div>
           ))}
         </div>
-      )}
+      ) : (
+        <div style={{ textAlign: 'center', color: 'white' }}>
+          <button
+            onClick={() => {
+              setSelectedItem(null);
+              setPrecios(null);
+            }}
+            style={{
+              marginBottom: '20px',
+              background: '#444',
+              color: 'white',
+              padding: '10px 20px',
+              border: 'none',
+              borderRadius: '8px',
+              cursor: 'pointer',
+            }}
+          >
+            ← Volver al listado
+          </button>
 
-      <div style={{ marginTop: '30px', textAlign: 'center' }}>
-        <button onClick={() => setPagina(p => Math.max(p - 1, 1))} disabled={pagina === 1}>
-          ← Anterior
-        </button>
-        <span style={{ margin: '0 10px' }}>Página {pagina} de {totalPaginas}</span>
-        <button onClick={() => setPagina(p => Math.min(p + 1, totalPaginas))} disabled={pagina === totalPaginas}>
-          Siguiente →
-        </button>
-      </div>
+          <h2 style={{ fontSize: '1.5rem' }}>{getName(selectedItem)}</h2>
+          <img
+            src={`https://render.albiononline.com/v1/item/${selectedItem.UniqueName}.png`}
+            alt={getName(selectedItem)}
+            style={{ width: '100px', height: '100px', marginBottom: '20px' }}
+          />
+
+          {loading ? (
+            <p>Cargando precios...</p>
+          ) : precios ? (
+            <div style={{ fontSize: '18px' }}>
+              <p>🟢 <b>Compra más alta:</b> {precios.buyPrice} ({precios.buyCity})</p>
+              <p>🔴 <b>Venta más baja:</b> {precios.sellPrice} ({precios.sellCity})</p>
+              <p>💰 <b>Margen:</b> {precios.margin}</p>
+            </div>
+          ) : (
+            <p>No se encontraron precios.</p>
+          )}
+        </div>
+      )}
     </div>
   );
 };

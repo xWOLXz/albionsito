@@ -11,19 +11,33 @@ export default function Market() {
   const [selected, setSelected] = useState(null);
   const [loading, setLoading] = useState(false);
 
-  // Cargar todos los ítems al inicio
+  // ✅ Cargar ítems con protección de ciclo infinito
   useEffect(() => {
     const loadAllItems = async () => {
       try {
         let page = 1;
         let allItems = [];
-        let keepFetching = true;
+        let uniqueNames = new Set();
+        let duplicated = false;
 
-        while (keepFetching) {
+        while (!duplicated) {
           const res = await axios.get(`${API_BASE}/items?page=${page}`);
-          allItems = [...allItems, ...res.data.items];
+          const data = res.data.items;
+
+          // 🚨 Protección: si una página devuelve 0 ítems o solo ítems repetidos, detenemos
+          if (!data || data.length === 0) break;
+
+          // Validamos si ya los teníamos
+          const newItems = data.filter(item => !uniqueNames.has(item.UniqueName));
+          newItems.forEach(item => uniqueNames.add(item.UniqueName));
+
+          if (newItems.length === 0) {
+            duplicated = true;
+            break;
+          }
+
+          allItems = [...allItems, ...newItems];
           page++;
-          if (res.data.items.length === 0) keepFetching = false;
         }
 
         setItems(allItems);
@@ -36,7 +50,7 @@ export default function Market() {
     loadAllItems();
   }, []);
 
-  // Buscar
+  // 🔍 Buscar ítem
   useEffect(() => {
     const term = search.toLowerCase();
     const resultados = items.filter(item =>
@@ -45,7 +59,7 @@ export default function Market() {
     setFiltered(resultados);
   }, [search, items]);
 
-  // Consultar precios de un ítem
+  // 🔍 Consultar precios
   const fetchPrices = async (itemId) => {
     try {
       setLoading(true);

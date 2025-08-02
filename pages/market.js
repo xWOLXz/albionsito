@@ -1,135 +1,109 @@
 import { useEffect, useState } from 'react';
+import axios from 'axios';
 
-const Market = () => {
+export default function Market() {
   const [items, setItems] = useState([]);
-  const [precios, setPrecios] = useState({});
-  const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
-  const [filtered, setFiltered] = useState([]);
-  const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 30;
+  const [pagina, setPagina] = useState(1);
+  const [totalPaginas, setTotalPaginas] = useState(1);
+  const [busqueda, setBusqueda] = useState('');
 
-  useEffect(() => {
-    const fetchItems = async () => {
-      try {
-        const res = await fetch('https://albionsito-backend.onrender.com/items');
-        const data = await res.json();
-        setItems(data.items);
-        setFiltered(data.items);
-        setLoading(false);
-      } catch (error) {
-        console.error('Error cargando ítems:', error);
-      }
-    };
-    fetchItems();
-  }, []);
-
-  const handleSearch = (e) => {
-    const term = e.target.value.toLowerCase();
-    setSearch(term);
-    const result = items.filter(item =>
-      item.LocalizedNames?.['ES-ES']?.toLowerCase().includes(term)
-    );
-    setFiltered(result);
-    setCurrentPage(1);
-  };
-
-  const fetchPrecio = async (itemId) => {
-    if (precios[itemId]) return;
+  const obtenerItems = async () => {
     try {
-      const res = await fetch(`https://albionsito-backend.onrender.com/precios?itemId=${itemId}`);
-      const data = await res.json();
-      setPrecios(prev => ({ ...prev, [itemId]: data }));
+      setLoading(true);
+      const res = await axios.get(`/api/items?page=${pagina}`);
+      setItems(res.data.items || []);
+      setTotalPaginas(res.data.totalPages || 1);
     } catch (error) {
-      console.error('Error obteniendo precios de', itemId, error);
+      console.error('Error al obtener ítems:', error.message);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const currentItems = filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+  const obtenerPrecio = async (itemId, index) => {
+    try {
+      const res = await axios.get(`/api/precios?itemId=${itemId}`);
+      const nuevos = [...items];
+      nuevos[index].precios = res.data;
+      setItems(nuevos);
+    } catch (error) {
+      console.error('Error al obtener precios de', itemId);
+    }
+  };
+
+  useEffect(() => {
+    obtenerItems();
+  }, [pagina]);
+
+  useEffect(() => {
+    items.forEach((item, i) => {
+      if (!item.precios) {
+        obtenerPrecio(item.UniqueName, i);
+      }
+    });
+  }, [items]);
+
+  const itemsFiltrados = items?.filter((item) =>
+    item.LocalizedNames?.['ES-ES']?.toLowerCase().includes(busqueda.toLowerCase())
+  ) || [];
 
   return (
-    <div style={{ padding: '20px' }}>
-      <h1 style={{ textAlign: 'center' }}>🛒 Market General</h1>
+    <div className="p-4 text-white">
+      <h1 className="text-3xl font-bold mb-4 text-center">Mercado General</h1>
+
       <input
         type="text"
-        value={search}
-        onChange={handleSearch}
-        placeholder="Buscar ítem..."
-        style={{
-          display: 'block',
-          margin: '20px auto',
-          padding: '10px',
-          width: '300px',
-          borderRadius: '8px',
-          border: '1px solid #ccc'
-        }}
+        placeholder="Buscar item..."
+        className="w-full mb-6 p-2 rounded text-black"
+        value={busqueda}
+        onChange={(e) => setBusqueda(e.target.value)}
       />
 
       {loading ? (
-        <p style={{ textAlign: 'center' }}>Cargando ítems...</p>
+        <p className="text-center">Cargando ítems...</p>
       ) : (
-        <>
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-              gap: '20px'
-            }}
-          >
-            {currentItems.map(item => {
-              const icon = `https://render.albiononline.com/v1/item/${item.UniqueName}.png`;
-              const precio = precios[item.UniqueName];
-              useEffect(() => {
-                fetchPrecio(item.UniqueName);
-              }, []);
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+          {itemsFiltrados.map((item, index) => (
+            <div key={item.UniqueName} className="bg-gray-900 p-3 rounded-lg text-center">
+              <img
+                src={`https://render.albiononline.com/v1/item/${item.UniqueName}.png`}
+                alt={item.LocalizedNames?.['ES-ES']}
+                className="w-16 h-16 mx-auto"
+              />
+              <h2 className="text-sm font-semibold mt-2">{item.LocalizedNames?.['ES-ES']}</h2>
 
-              return (
-                <div key={item.UniqueName} style={{
-                  background: '#111',
-                  padding: '15px',
-                  borderRadius: '10px',
-                  color: '#fff',
-                  textAlign: 'center',
-                  boxShadow: '0 0 10px #0008'
-                }}>
-                  <img src={icon} alt={item.UniqueName} width={80} height={80} />
-                  <h3>{item.LocalizedNames['ES-ES']}</h3>
-                  {precio ? (
-                    <>
-                      <p><strong>Compra máx:</strong> {precio.buy.price.toLocaleString()} ({precio.buy.city})</p>
-                      <p><strong>Venta mín:</strong> {precio.sell.price.toLocaleString()} ({precio.sell.city})</p>
-                      <p><strong>Ganancia:</strong> {precio.margen.toLocaleString()}</p>
-                    </>
-                  ) : (
-                    <p>Cargando precios...</p>
-                  )}
+              {item.precios ? (
+                <div className="text-xs mt-1">
+                  <p>🛒 Vender: {item.precios.sell?.price.toLocaleString()} ({item.precios.sell?.city})</p>
+                  <p>🪙 Comprar: {item.precios.buy?.price.toLocaleString()} ({item.precios.buy?.city})</p>
+                  <p>📈 Margen: {item.precios.margen.toLocaleString()}</p>
                 </div>
-              );
-            })}
-          </div>
-
-          {/* Paginación */}
-          <div style={{ textAlign: 'center', marginTop: '30px' }}>
-            <button
-              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-              disabled={currentPage === 1}
-              style={{ marginRight: '10px', padding: '10px 15px' }}
-            >
-              ← Anterior
-            </button>
-            <span style={{ fontWeight: 'bold' }}>Página {currentPage}</span>
-            <button
-              onClick={() => setCurrentPage(prev => (prev * itemsPerPage < filtered.length ? prev + 1 : prev))}
-              disabled={(currentPage * itemsPerPage) >= filtered.length}
-              style={{ marginLeft: '10px', padding: '10px 15px' }}
-            >
-              Siguiente →
-            </button>
-          </div>
-        </>
+              ) : (
+                <p className="text-xs text-gray-400 mt-2">Cargando precios…</p>
+              )}
+            </div>
+          ))}
+        </div>
       )}
+
+      <div className="flex justify-center gap-2 mt-6">
+        <button
+          className="px-4 py-1 bg-gray-700 rounded disabled:opacity-30"
+          onClick={() => setPagina(p => Math.max(p - 1, 1))}
+          disabled={pagina === 1}
+        >
+          ← Anterior
+        </button>
+        <span className="px-4 py-1">Página {pagina} de {totalPaginas}</span>
+        <button
+          className="px-4 py-1 bg-gray-700 rounded disabled:opacity-30"
+          onClick={() => setPagina(p => Math.min(p + 1, totalPaginas))}
+          disabled={pagina === totalPaginas}
+        >
+          Siguiente →
+        </button>
+      </div>
     </div>
   );
-};
-
-export default Market;
+}

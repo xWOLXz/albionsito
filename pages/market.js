@@ -11,7 +11,7 @@ export default function Market() {
   const obtenerItems = async () => {
     try {
       setLoading(true);
-      const res = await axios.get(`/api/items?page=${pagina}`);
+      const res = await axios.get(`/api/items?page=${pagina}&nocache=${Date.now()}`);
       setItems(res.data.items || []);
       setTotalPaginas(res.data.totalPages || 1);
     } catch (error) {

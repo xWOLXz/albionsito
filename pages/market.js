@@ -1,72 +1,71 @@
-// pages/market.js
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 
-export default function Market() {
+const Market = () => {
   const [items, setItems] = useState([]);
-  const [search, setSearch] = useState('');
-  const [loading, setLoading] = useState(true);
-
-  const fetchItems = async () => {
-    setLoading(true);
-    try {
-      const res = await fetch('https://albionsito-backend.onrender.com/items');
-      const data = await res.json();
-
-      // Si data es un array directo (como el JSON actual), lo asignamos directo
-      const itemArray = Array.isArray(data) ? data : [];
-
-      setItems(itemArray);
-    } catch (error) {
-      console.error('Error cargando items:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const [busqueda, setBusqueda] = useState('');
 
   useEffect(() => {
+    const fetchItems = async () => {
+      try {
+        const res = await fetch('https://albionsito-backend.onrender.com/items');
+        const data = await res.json();
+
+        // Asegúrate de que esté accediendo correctamente a shopcategories
+        const categorias = data?.items?.shopcategories || [];
+
+        // Extrae todos los items dentro de cada categoría
+        const todosLosItems = categorias.flatMap(categoria =>
+          Array.isArray(categoria) ? categoria : [categoria]
+        );
+
+        setItems(todosLosItems);
+      } catch (error) {
+        console.error('Error cargando los ítems:', error);
+      }
+    };
+
     fetchItems();
   }, []);
 
-  const filteredItems = items.filter((item) =>
-    item.UniqueName?.toLowerCase().includes(search.toLowerCase())
+  const itemsFiltrados = items.filter(item =>
+    item.id?.toLowerCase().includes(busqueda.toLowerCase())
   );
 
   return (
-    <div style={{ padding: '2rem', background: '#111', color: 'white', minHeight: '100vh' }}>
-      <h1 style={{ fontSize: '2rem', marginBottom: '1rem' }}>Market General</h1>
+    <div style={{ padding: '2rem' }}>
+      <h1 style={{ color: 'white', fontSize: '2rem', marginBottom: '1rem' }}>Market General</h1>
       <input
         type="text"
-        placeholder="Buscar item..."
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
+        placeholder="Buscar ítem..."
+        value={busqueda}
+        onChange={(e) => setBusqueda(e.target.value)}
         style={{
-          padding: '0.5rem 1rem',
-          fontSize: '1rem',
+          padding: '0.5rem',
           width: '100%',
           maxWidth: '400px',
-          marginBottom: '2rem',
+          marginBottom: '1rem',
+          borderRadius: '4px',
+          border: '1px solid #ccc',
         }}
       />
-      {loading ? (
-        <p>Cargando items...</p>
-      ) : (
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-          <thead>
-            <tr>
-              <th style={{ textAlign: 'left', padding: '0.5rem' }}>Item</th>
-              <th style={{ textAlign: 'left', padding: '0.5rem' }}>Nombre</th>
+      <table style={{ width: '100%', borderCollapse: 'collapse', color: 'white' }}>
+        <thead>
+          <tr>
+            <th style={{ borderBottom: '1px solid #555', textAlign: 'left', padding: '0.5rem' }}>Item</th>
+            <th style={{ borderBottom: '1px solid #555', textAlign: 'left', padding: '0.5rem' }}>Valor</th>
+          </tr>
+        </thead>
+        <tbody>
+          {itemsFiltrados.map((item, index) => (
+            <tr key={index}>
+              <td style={{ borderBottom: '1px solid #333', padding: '0.5rem' }}>{item.id}</td>
+              <td style={{ borderBottom: '1px solid #333', padding: '0.5rem' }}>{item.value}</td>
             </tr>
-          </thead>
-          <tbody>
-            {filteredItems.map((item, idx) => (
-              <tr key={idx}>
-                <td style={{ padding: '0.5rem' }}>{item.UniqueName}</td>
-                <td style={{ padding: '0.5rem' }}>{item.LocalizedNames?.ES || 'Sin nombre'}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
+          ))}
+        </tbody>
+      </table>
     </div>
   );
-          }
+};
+
+export default Market;

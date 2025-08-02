@@ -22,7 +22,7 @@ export default function Market() {
 
   const fetchItems = async () => {
     try {
-      const res = await axios.get('/api/items');
+      const res = await axios.get('https://albionsito-backend.onrender.com/items');
       setItems(res.data.items);
       setLoading(false);
     } catch (error) {

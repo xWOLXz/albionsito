@@ -1,120 +1,104 @@
 import { useEffect, useState } from 'react';
 
-const Market = () => {
+export default function Market() {
   const [items, setItems] = useState([]);
-  const [search, setSearch] = useState('');
-  const [precios, setPrecios] = useState({});
+  const [filteredItems, setFilteredItems] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [busqueda, setBusqueda] = useState('');
 
-  useEffect(() => {
-    const fetchItems = async () => {
-      try {
-        const res = await fetch('https://albionsito-backend.onrender.com/items');
-        const data = await res.json();
-        const filtered = data.filter(
-          item =>
-            item.LocalizedNames?.['ES-ES'] &&
-            item.UniqueName &&
-            !item.UniqueName.includes('TOKEN_') &&
-            !item.UniqueName.includes('JOURNAL') &&
-            !item.UniqueName.includes('TRASH') &&
-            !item.UniqueName.includes('QUESTITEM') &&
-            !item.UniqueName.includes('T8_ROCK') &&
-            !item.UniqueName.includes('T8_TREE') &&
-            !item.UniqueName.includes('T8_ORE') &&
-            !item.UniqueName.includes('T8_HIDE')
-        );
-        setItems(filtered);
-        setLoading(false);
-      } catch (error) {
-        console.error('Error cargando ítems:', error);
-      }
-    };
-    fetchItems();
-  }, []);
-
-  const handleSearch = (e) => {
-    setSearch(e.target.value.toLowerCase());
-  };
-
-  const fetchPrecio = async (itemId) => {
+  const fetchItems = async () => {
     try {
-      const res = await fetch(`https://albionsito-backend.onrender.com/precios?itemId=${itemId}`);
+      setLoading(true);
+      const res = await fetch('https://albionsito-backend.onrender.com/items');
       const data = await res.json();
-      setPrecios(prev => ({ ...prev, [itemId]: data }));
+      setItems(data);
+      setFilteredItems(data);
     } catch (error) {
-      console.error('Error cargando precios:', error);
+      console.error('Error cargando datos del backend:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const mostrarItems = items.filter(item =>
-    item.LocalizedNames['ES-ES'].toLowerCase().includes(search)
-  );
+  useEffect(() => {
+    fetchItems();
+  }, []);
+
+  const handleBuscar = (e) => {
+    const texto = e.target.value.toLowerCase();
+    setBusqueda(texto);
+    const resultados = items.filter((item) =>
+      item.nombre.toLowerCase().includes(texto)
+    );
+    setFilteredItems(resultados);
+  };
+
+  const formatoMoneda = (valor) => {
+    return valor.toLocaleString('es-CO');
+  };
 
   return (
-    <div style={{ padding: 20 }}>
-      <h1 style={{ textAlign: 'center' }}>Market General</h1>
-      <input
-        type="text"
-        placeholder="Buscar ítem..."
-        value={search}
-        onChange={handleSearch}
-        style={{
-          display: 'block',
-          margin: '20px auto',
-          padding: '10px',
-          width: '300px',
-          borderRadius: '5px',
-          border: '1px solid #ccc'
-        }}
-      />
+    <div className="min-h-screen bg-gray-900 text-white p-4">
+      <h1 className="text-2xl font-bold mb-4 text-center">🛒 Mercado de Albion</h1>
+
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
+        <input
+          type="text"
+          placeholder="🔍 Buscar ítem..."
+          className="p-2 rounded bg-gray-800 text-white w-full md:w-1/2"
+          value={busqueda}
+          onChange={handleBuscar}
+        />
+        <button
+          onClick={fetchItems}
+          className="bg-blue-600 hover:bg-blue-700 p-2 rounded w-full md:w-auto"
+          title="Actualizar"
+        >
+          🔄
+        </button>
+      </div>
 
       {loading ? (
-        <p style={{ textAlign: 'center' }}>Cargando ítems...</p>
+        <div className="flex justify-center items-center mt-10">
+          <img src="/albion-loader.gif" alt="Cargando..." className="w-24 h-24" />
+        </div>
       ) : (
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-          gap: '20px'
-        }}>
-          {mostrarItems.map(item => {
-            const iconUrl = `https://render.albiononline.com/v1/item/${item.UniqueName}.png`;
-            const precio = precios[item.UniqueName];
-
-            if (!precio && !precios[item.UniqueName]) {
-              fetchPrecio(item.UniqueName);
-            }
-
-            return (
-              <div key={item.UniqueName} style={{
-                background: '#1a1a1a',
-                padding: 10,
-                borderRadius: 10,
-                textAlign: 'center'
-              }}>
-                <img
-                  src={iconUrl}
-                  alt={item.UniqueName}
-                  style={{ width: 80, height: 80 }}
-                  onError={(e) => e.target.style.display = 'none'}
-                />
-                <h4>{item.LocalizedNames['ES-ES']}</h4>
-                {precio ? (
-                  <>
-                    <p><strong>Compra máx:</strong> {precio.buy.price.toLocaleString()} ({precio.buy.city})</p>
-                    <p><strong>Venta mín:</strong> {precio.sell.price.toLocaleString()} ({precio.sell.city})</p>
-                    <p><strong>Ganancia:</strong> {precio.margen.toLocaleString()}</p>
-                  </>
-                ) : (
-                  <p>Cargando precios...</p>
-                )}
-              </div>
-            );
-          })}
+        <div className="overflow-x-auto">
+          <table className="w-full border border-gray-700">
+            <thead className="bg-gray-800">
+              <tr>
+                <th className="p-2 text-left">Ítem</th>
+                <th className="p-2">Compra más baja</th>
+                <th className="p-2">Venta más alta</th>
+                <th className="p-2">Ganancia</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredItems
+                .sort((a, b) => b.ganancia - a.ganancia)
+                .map((item) => (
+                  <tr key={item.item_id} className="border-t border-gray-700 hover:bg-gray-800">
+                    <td className="flex items-center gap-2 p-2">
+                      <img src={item.icono} alt={item.nombre} className="w-6 h-6" />
+                      {item.nombre}
+                    </td>
+                    <td className="text-center">
+                      <div>{formatoMoneda(item.compra)} 🪙</div>
+                      <div className="text-xs text-gray-400">{item.ciudad_compra}</div>
+                    </td>
+                    <td className="text-center">
+                      <div>{formatoMoneda(item.venta)} 🪙</div>
+                      <div className="text-xs text-gray-400">{item.ciudad_venta}</div>
+                    </td>
+                    <td className="text-center text-green-400 font-semibold">
+                      {formatoMoneda(item.ganancia)} 🪙
+                    </td>
+                  </tr>
+                ))}
+            </tbody>
+          </table>
         </div>
       )}
     </div>
   );
-};
-
-export default Market;
+}

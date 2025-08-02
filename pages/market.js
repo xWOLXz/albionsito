@@ -1,119 +1,76 @@
-// /pages/market.js
-import React, { useEffect, useState } from 'react';
-import axios from 'axios';
-
-const API_BASE = 'https://albionsito-backend.onrender.com';
+import { useEffect, useState } from 'react';
+import styles from '../styles/Market.module.css';
 
 export default function Market() {
   const [items, setItems] = useState([]);
-  const [filtered, setFiltered] = useState([]);
   const [search, setSearch] = useState('');
-  const [selected, setSelected] = useState(null);
+  const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(false);
 
-  // ✅ Cargar ítems con protección de ciclo infinito
-  useEffect(() => {
-    const loadAllItems = async () => {
-      try {
-        let page = 1;
-        let allItems = [];
-        let uniqueNames = new Set();
-        let duplicated = false;
-
-        while (!duplicated) {
-          const res = await axios.get(`${API_BASE}/items?page=${page}`);
-          const data = res.data.items;
-
-          // 🚨 Protección: si una página devuelve 0 ítems o solo ítems repetidos, detenemos
-          if (!data || data.length === 0) break;
-
-          // Validamos si ya los teníamos
-          const newItems = data.filter(item => !uniqueNames.has(item.UniqueName));
-          newItems.forEach(item => uniqueNames.add(item.UniqueName));
-
-          if (newItems.length === 0) {
-            duplicated = true;
-            break;
-          }
-
-          allItems = [...allItems, ...newItems];
-          page++;
-        }
-
-        setItems(allItems);
-        setFiltered(allItems);
-      } catch (err) {
-        console.error('Error cargando ítems:', err.message);
-      }
-    };
-
-    loadAllItems();
-  }, []);
-
-  // 🔍 Buscar ítem
-  useEffect(() => {
-    const term = search.toLowerCase();
-    const resultados = items.filter(item =>
-      item.LocalizedNames['ES-ES'].toLowerCase().includes(term)
-    );
-    setFiltered(resultados);
-  }, [search, items]);
-
-  // 🔍 Consultar precios
-  const fetchPrices = async (itemId) => {
+  const fetchItems = async () => {
+    setLoading(true);
     try {
-      setLoading(true);
-      const res = await axios.get(`${API_BASE}/precios?itemId=${itemId}`);
-      setSelected({ ...res.data });
-      setLoading(false);
-    } catch (err) {
-      console.error('Error al cargar precios:', err.message);
-      setLoading(false);
+      const res = await fetch(`https://albionsito-backend.onrender.com/items?page=${page}`);
+      const data = await res.json();
+      const enriched = await Promise.all(
+        data.items.map(async (item) => {
+          const priceRes = await fetch(`https://albionsito-backend.onrender.com/precios?itemId=${item.UniqueName}`);
+          const price = await priceRes.json();
+          return { ...item, price };
+        })
+      );
+      setItems(enriched);
+    } catch (error) {
+      console.error('❌ Error cargando ítems:', error);
     }
+    setLoading(false);
   };
 
+  useEffect(() => {
+    fetchItems();
+  }, [page]);
+
+  const filteredItems = items.filter(item =>
+    item.LocalizedNames?.['ES-ES']?.toLowerCase().includes(search.toLowerCase())
+  );
+
   return (
-    <div className="p-4 text-white bg-black min-h-screen">
-      <h1 className="text-3xl font-bold mb-4">🛒 Market General - Albionsito</h1>
+    <div className={styles.container}>
+      <h1>🛒 Market General</h1>
 
       <input
+        className={styles.search}
         type="text"
-        placeholder="Buscar ítem..."
-        className="p-2 rounded w-full text-black mb-4"
+        placeholder="🔍 Buscar ítem..."
         value={search}
         onChange={(e) => setSearch(e.target.value)}
       />
 
-      {loading && (
-        <div className="text-center text-yellow-400 font-semibold mb-4 animate-pulse">
-          ⏳ Consultando precios del ítem seleccionado...
+      {loading ? (
+        <p className={styles.loading}>Cargando...</p>
+      ) : (
+        <div className={styles.grid}>
+          {filteredItems.map((item) => (
+            <div key={item.UniqueName} className={styles.card}>
+              <img
+                src={`https://render.albiononline.com/v1/item/${item.UniqueName}.png`}
+                alt={item.LocalizedNames['ES-ES']}
+              />
+              <h3>{item.LocalizedNames['ES-ES']}</h3>
+              <p>🟢 Compra: {item.price.buy.price.toLocaleString()} ({item.price.buy.city})</p>
+              <p>🔴 Venta: {item.price.sell.price.toLocaleString()} ({item.price.sell.city})</p>
+              <p>💰 Margen: {item.price.margen.toLocaleString()}</p>
+            </div>
+          ))}
         </div>
       )}
 
-      {selected && (
-        <div className="bg-gray-800 p-4 rounded mb-6">
-          <h2 className="text-xl font-bold mb-2">📦 {selected.itemId}</h2>
-          <p>💰 Mejor venta: {selected.sell.price.toLocaleString()} en <strong>{selected.sell.city}</strong></p>
-          <p>🛒 Mejor compra: {selected.buy.price.toLocaleString()} en <strong>{selected.buy.city}</strong></p>
-          <p className="text-green-400 font-bold">📈 Margen de ganancia: {selected.margen.toLocaleString()}</p>
-        </div>
-      )}
-
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
-        {filtered.map(item => (
-          <button
-            key={item.UniqueName}
-            className="bg-gray-800 rounded p-2 hover:bg-gray-700 transition"
-            onClick={() => fetchPrices(item.UniqueName)}
-          >
-            <img
-              src={`https://render.albiononline.com/v1/item/${item.UniqueName}.png`}
-              alt={item.LocalizedNames['ES-ES']}
-              className="w-16 h-16 mx-auto"
-            />
-            <p className="text-sm mt-2 text-center">{item.LocalizedNames['ES-ES']}</p>
-          </button>
-        ))}
+      <div className={styles.pagination}>
+        <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1}>
+          ← Anterior
+        </button>
+        <span>Página {page}</span>
+        <button onClick={() => setPage((p) => p + 1)}>Siguiente →</button>
       </div>
     </div>
   );

@@ -6,19 +6,23 @@ export default function Market() {
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
 
+  const ensureArray = (value) => {
+    if (Array.isArray(value)) return value;
+    if (value === undefined || value === null) return [];
+    return [value];
+  };
+
   const fetchItems = async () => {
     setLoading(true);
     try {
       const res = await fetch('https://albionsito-backend.onrender.com/items');
       const data = await res.json();
 
-      // Verifica que exista el array
-      const categories = data.items?.shopcategories?.shopcategory || [];
+      const categories = ensureArray(data.items?.shopcategories?.shopcategory);
 
-      // Extrae todos los items reales de cada subcategoría
       const extractedItems = categories.flatMap((cat) => {
-        const subs = cat.shopsubcategory2?.shopsubcategory || [];
-        return subs.flatMap((sub) => sub.item || []);
+        const subcategories = ensureArray(cat.shopsubcategory2?.shopsubcategory);
+        return subcategories.flatMap((sub) => ensureArray(sub.item));
       });
 
       setItems(extractedItems);

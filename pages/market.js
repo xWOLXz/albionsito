@@ -10,14 +10,16 @@ const Market = () => {
         const res = await fetch('https://albionsito-backend.onrender.com/items');
         const data = await res.json();
 
-        // Corregido: obtener los arrays dentro del objeto shopcategories
-        const categoriasObj = data?.items?.shopcategories || {};
-        const arraysDeCategorias = Object.values(categoriasObj);
+        const categorias = data?.items?.shopcategories || {};
+        const arraysDeCategorias = Object.values(categorias);
 
-        // Aplanar todos los items de todas las categorías
+        // Plano, extrayendo @id y @value correctamente
         const todosLosItems = arraysDeCategorias.flatMap(arr =>
           Array.isArray(arr) ? arr : [arr]
-        );
+        ).map(item => ({
+          id: item['@id'],
+          value: item['@value']
+        }));
 
         setItems(todosLosItems);
       } catch (error) {

@@ -1,106 +1,57 @@
-// 📁 pages/market.js
-import { useEffect, useState } from 'react';
-import Image from 'next/image';
+// /pages/market.js
+import { useState, useEffect } from 'react';
+import axios from 'axios';
 
 export default function Market() {
   const [items, setItems] = useState([]);
-  const [search, setSearch] = useState('');
-  const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [loading, setLoading] = useState(false);
-  const [selectedItem, setSelectedItem] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [backendError, setBackendError] = useState(false);
 
   useEffect(() => {
+    const fetchItems = async () => {
+      try {
+        setLoading(true);
+        const res = await axios.get('https://albionsito-backend.onrender.com/items?page=1');
+        setItems(res.data.items || []);
+        setBackendError(false);
+      } catch (err) {
+        console.error('❌ Error cargando ítems:', err.message);
+        setBackendError(true);
+      } finally {
+        setLoading(false);
+      }
+    };
     fetchItems();
-  }, [page]);
-
-  const fetchItems = async () => {
-    setLoading(true);
-    try {
-      const res = await fetch(`https://albionsito-backend.onrender.com/items?page=${page}`);
-      const data = await res.json();
-      setItems(data.items);
-      setTotalPages(data.totalPages);
-    } catch (err) {
-      console.error('Error al obtener ítems:', err);
-    }
-    setLoading(false);
-  };
-
-  const fetchDetails = async (itemId) => {
-    try {
-      const res = await fetch(`https://albionsito-backend.onrender.com/precios?itemId=${itemId}`);
-      const data = await res.json();
-      setSelectedItem({ ...data, itemId });
-    } catch (err) {
-      console.error('Error al obtener detalles:', err);
-    }
-  };
-
-  const filtered = items.filter(item =>
-    item.LocalizedNames['ES-ES'].toLowerCase().includes(search.toLowerCase())
-  );
+  }, []);
 
   return (
-    <div className="p-4 text-white">
-      <h1 className="text-3xl font-bold mb-4 text-center">Mercado General</h1>
+    <div style={{ padding: '1rem' }}>
+      <h1>📦 Market General</h1>
 
-      <input
-        type="text"
-        placeholder="Buscar ítem..."
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-        className="w-full p-2 rounded-md text-black mb-4"
-      />
+      {loading && <p>⏳ Cargando datos del mercado...</p>}
 
-      {loading ? (
-        <p className="text-center">⏳ Cargando ítems...</p>
-      ) : (
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filtered.map((item) => (
-            <div
-              key={item.UniqueName}
-              className="bg-gray-800 p-4 rounded-md hover:bg-gray-700 cursor-pointer"
-              onClick={() => fetchDetails(item.UniqueName)}
-            >
-              <div className="flex items-center gap-4">
-                <Image
-                  src={`https://render.albiononline.com/v1/item/${item.UniqueName}.png`}
-                  alt={item.LocalizedNames['ES-ES']}
-                  width={40}
-                  height={40}
-                />
-                <span>{item.LocalizedNames['ES-ES']}</span>
-              </div>
-            </div>
-          ))}
-        </div>
+      {backendError && (
+        <p style={{ color: 'red' }}>
+          ❌ No se pudo conectar al backend. Intenta más tarde.
+        </p>
       )}
 
-      <div className="flex justify-center gap-4 mt-6">
-        <button
-          className="bg-gray-700 px-4 py-2 rounded disabled:opacity-50"
-          disabled={page <= 1}
-          onClick={() => setPage(page - 1)}
-        >
-          ⬅️ Anterior
-        </button>
-        <button
-          className="bg-gray-700 px-4 py-2 rounded disabled:opacity-50"
-          disabled={page >= totalPages}
-          onClick={() => setPage(page + 1)}
-        >
-          Siguiente ➡️
-        </button>
-      </div>
-
-      {selectedItem && (
-        <div className="mt-8 p-4 border border-gray-600 rounded-md bg-gray-900">
-          <h2 className="text-xl font-semibold mb-2">Detalles del ítem</h2>
-          <p><strong>Ítem:</strong> {selectedItem.itemId}</p>
-          <p><strong>Precio Venta:</strong> {selectedItem.sell.price} en {selectedItem.sell.city}</p>
-          <p><strong>Precio Compra:</strong> {selectedItem.buy.price} en {selectedItem.buy.city}</p>
-          <p><strong>Margen de Ganancia:</strong> {selectedItem.margen} 🪙</p>
+      {!loading && !backendError && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
+          {items.map((item) => (
+            <div
+              key={item.UniqueName}
+              style={{ background: '#222', padding: '10px', borderRadius: '10px', textAlign: 'center' }}
+            >
+              <img
+                src={`https://render.albiononline.com/v1/item/${item.UniqueName}.png`}
+                alt={item.LocalizedNames['ES-ES']}
+                width={64}
+                height={64}
+              />
+              <p>{item.LocalizedNames['ES-ES']}</p>
+            </div>
+          ))}
         </div>
       )}
     </div>

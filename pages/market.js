@@ -1,77 +1,113 @@
-import { useEffect, useState } from 'react';
-import styles from '../styles/Market.module.css';
+// /pages/market.js
+import React, { useEffect, useState } from 'react';
+import Image from 'next/image';
 
-export default function Market() {
-  const [items, setItems] = useState([]);
+export default function MarketPage() {
+  const [allItems, setAllItems] = useState([]);
   const [search, setSearch] = useState('');
-  const [page, setPage] = useState(1);
-  const [loading, setLoading] = useState(false);
+  const [filteredItems, setFilteredItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedItem, setSelectedItem] = useState(null);
+  const [prices, setPrices] = useState(null);
 
-  const fetchItems = async () => {
-    setLoading(true);
-    try {
-      const res = await fetch(`https://albionsito-backend.onrender.com/items?page=${page}`);
-      const data = await res.json();
-      const enriched = await Promise.all(
-        data.items.map(async (item) => {
-          const priceRes = await fetch(`https://albionsito-backend.onrender.com/precios?itemId=${item.UniqueName}`);
-          const price = await priceRes.json();
-          return { ...item, price };
-        })
-      );
-      setItems(enriched);
-    } catch (error) {
-      console.error('❌ Error cargando ítems:', error);
-    }
-    setLoading(false);
-  };
-
+  // Cargar todos los items paginados una sola vez al iniciar
   useEffect(() => {
-    fetchItems();
-  }, [page]);
+    let cancel = false;
+    const fetchAllItems = async () => {
+      let page = 1;
+      let items = [];
+      while (!cancel) {
+        const res = await fetch(`https://albionsito-backend.onrender.com/items?page=${page}`);
+        const data = await res.json();
+        if (!data.length) break;
+        items = [...items, ...data];
+        page++;
+      }
+      if (!cancel) {
+        setAllItems(items);
+        setLoading(false);
+      }
+    };
+    fetchAllItems();
+    return () => {
+      cancel = true;
+    };
+  }, []);
 
-  const filteredItems = items.filter(item =>
-    item.LocalizedNames?.['ES-ES']?.toLowerCase().includes(search.toLowerCase())
-  );
+  // Buscar items en memoria (todos los cargados)
+  useEffect(() => {
+    const query = search.toLowerCase();
+    const filtered = allItems.filter(item =>
+      item.LocalizedNames?.['ES-ES']?.toLowerCase().includes(query)
+    );
+    setFilteredItems(filtered);
+  }, [search, allItems]);
+
+  // Obtener precios del item seleccionado
+  useEffect(() => {
+    if (!selectedItem) return;
+    const fetchPrices = async () => {
+      const res = await fetch(`https://albionsito-backend.onrender.com/precios?itemId=${selectedItem.UniqueName}`);
+      const data = await res.json();
+      setPrices(data);
+    };
+    fetchPrices();
+  }, [selectedItem]);
 
   return (
-    <div className={styles.container}>
-      <h1>🛒 Market General</h1>
+    <div className="p-4 text-white">
+      <h1 className="text-2xl font-bold mb-4 text-center">📦 Mercado de Albion</h1>
 
+      {/* Buscador */}
       <input
-        className={styles.search}
         type="text"
-        placeholder="🔍 Buscar ítem..."
+        placeholder="Buscar ítem por nombre..."
         value={search}
         onChange={(e) => setSearch(e.target.value)}
+        className="w-full p-2 mb-4 rounded text-black"
       />
 
-      {loading ? (
-        <p className={styles.loading}>Cargando...</p>
-      ) : (
-        <div className={styles.grid}>
-          {filteredItems.map((item) => (
-            <div key={item.UniqueName} className={styles.card}>
-              <img
-                src={`https://render.albiononline.com/v1/item/${item.UniqueName}.png`}
-                alt={item.LocalizedNames['ES-ES']}
-              />
-              <h3>{item.LocalizedNames['ES-ES']}</h3>
-              <p>🟢 Compra: {item.price.buy.price.toLocaleString()} ({item.price.buy.city})</p>
-              <p>🔴 Venta: {item.price.sell.price.toLocaleString()} ({item.price.sell.city})</p>
-              <p>💰 Margen: {item.price.margen.toLocaleString()}</p>
-            </div>
-          ))}
+      {/* Cargando */}
+      {loading && <p className="text-center">⏳ Cargando todos los ítems...</p>}
+
+      {/* Resultados */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-4">
+        {filteredItems.map(item => (
+          <button
+            key={item.UniqueName}
+            className="bg-zinc-800 hover:bg-zinc-700 p-2 rounded flex flex-col items-center"
+            onClick={() => setSelectedItem(item)}
+          >
+            <Image
+              src={`https://render.albiononline.com/v1/item/${item.UniqueName}.png`}
+              alt={item.LocalizedNames?.['ES-ES'] || item.UniqueName}
+              width={64}
+              height={64}
+            />
+            <span className="text-xs text-center mt-1">
+              {item.LocalizedNames?.['ES-ES'] || item.UniqueName}
+            </span>
+          </button>
+        ))}
+      </div>
+
+      {/* Detalles del ítem seleccionado */}
+      {selectedItem && prices && (
+        <div className="mt-8 p-4 border rounded bg-zinc-800">
+          <h2 className="text-lg font-semibold mb-2">
+            Detalles de: {selectedItem.LocalizedNames?.['ES-ES'] || selectedItem.UniqueName}
+          </h2>
+          <p>📉 Precio más bajo: {prices.sell_price_min} (en {prices.sell_city})</p>
+          <p>📈 Precio más alto de compra: {prices.buy_price_max} (en {prices.buy_city})</p>
+          <p>💰 Margen de ganancia: {prices.profit}</p>
+          <button
+            className="mt-2 px-4 py-1 bg-red-600 text-white rounded"
+            onClick={() => setSelectedItem(null)}
+          >
+            Cerrar detalles
+          </button>
         </div>
       )}
-
-      <div className={styles.pagination}>
-        <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1}>
-          ← Anterior
-        </button>
-        <span>Página {page}</span>
-        <button onClick={() => setPage((p) => p + 1)}>Siguiente →</button>
-      </div>
     </div>
   );
-}
+              }

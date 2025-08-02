@@ -1,133 +1,91 @@
 import { useEffect, useState } from 'react';
-import Image from 'next/image';
+import { useRouter } from 'next/router';
 
-export default function Market() {
+export default function MarketPage() {
   const [items, setItems] = useState([]);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [search, setSearch] = useState('');
   const [filteredItems, setFilteredItems] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(false);
+
+  const router = useRouter();
 
   useEffect(() => {
-    const fetchItems = async () => {
-      setLoading(true);
+    const fetchAllItems = async () => {
       try {
-        const res = await fetch('https://albionsito-backend.onrender.com/items');
+        const res = await fetch('https://albionsito-backend.onrender.com/items?page=1');
         const data = await res.json();
-        setItems(data.items);
-        setFilteredItems(data.items); // inicializa con todos
-      } catch (error) {
-        console.error('Error cargando ítems:', error);
-      } finally {
-        setLoading(false);
+
+        if (data && Array.isArray(data.items)) {
+          setItems(data.items);
+          setFilteredItems(data.items);
+        } else {
+          setError(true);
+        }
+      } catch (err) {
+        console.error('❌ Error cargando items:', err.message);
+        setError(true);
       }
     };
 
-    fetchItems();
+    fetchAllItems();
   }, []);
 
   useEffect(() => {
-    if (searchTerm.trim() === '') {
+    if (!search.trim()) {
       setFilteredItems(items);
-    } else {
-      const filtered = items.filter(item =>
-        item.LocalizedNames['ES-ES']?.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-      setFilteredItems(filtered);
+      return;
     }
-  }, [searchTerm, items]);
 
-  const fetchPrecios = async (itemId) => {
-    try {
-      const res = await fetch(`https://albionsito-backend.onrender.com/precios?itemId=${itemId}`);
-      const data = await res.json();
-      return data;
-    } catch (error) {
-      console.error('Error al obtener precios:', error);
-      return null;
-    }
+    const filtro = search.toLowerCase();
+    const resultados = items.filter(item =>
+      item.LocalizedNames['ES-ES'].toLowerCase().includes(filtro)
+    );
+    setFilteredItems(resultados);
+  }, [search, items]);
+
+  const verDetalles = (itemId) => {
+    router.push(`/market/${itemId}`);
   };
 
-  const [preciosMap, setPreciosMap] = useState({});
-
-  useEffect(() => {
-    const cargarPrecios = async () => {
-      const preciosTemp = {};
-      for (const item of filteredItems.slice(0, 50)) {
-        const precios = await fetchPrecios(item.UniqueName);
-        if (precios) {
-          preciosTemp[item.UniqueName] = precios;
-        }
-      }
-      setPreciosMap(preciosTemp);
-    };
-
-    if (filteredItems.length > 0) {
-      cargarPrecios();
-    }
-  }, [filteredItems]);
+  if (error) {
+    return (
+      <div style={{ color: 'white', textAlign: 'center', paddingTop: 40 }}>
+        ❌ Error al cargar datos del backend.
+      </div>
+    );
+  }
 
   return (
-    <div style={{ padding: '20px', backgroundColor: '#111', color: 'white' }}>
-      <h1 style={{ textAlign: 'center', fontSize: '2em' }}>Mercado General</h1>
+    <div className="p-4">
+      <h1 className="text-2xl font-bold text-center text-white mb-4">Mercado General</h1>
+      <input
+        type="text"
+        placeholder="🔍 Buscar item..."
+        className="w-full mb-4 px-3 py-2 rounded bg-black text-white border border-yellow-400"
+        value={search}
+        onChange={e => setSearch(e.target.value)}
+      />
 
-      <div style={{ textAlign: 'center', marginBottom: '20px' }}>
-        <input
-          type="text"
-          placeholder="Buscar ítem..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          style={{
-            padding: '10px',
-            width: '90%',
-            maxWidth: '500px',
-            borderRadius: '5px',
-            border: '1px solid #ccc',
-            fontSize: '16px',
-            backgroundColor: '#222',
-            color: 'white'
-          }}
-        />
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
+        {filteredItems && filteredItems.length > 0 ? (
+          filteredItems.map(item => (
+            <div
+              key={item.UniqueName}
+              className="bg-zinc-900 rounded-xl p-4 cursor-pointer hover:scale-105 transition"
+              onClick={() => verDetalles(item.UniqueName)}
+            >
+              <img
+                src={`https://render.albiononline.com/v1/item/${item.UniqueName}.png`}
+                alt={item.LocalizedNames['ES-ES']}
+                className="w-16 h-16 mx-auto mb-2"
+              />
+              <h2 className="text-center text-white text-sm">{item.LocalizedNames['ES-ES']}</h2>
+            </div>
+          ))
+        ) : (
+          <p className="text-white text-center col-span-full">No se encontraron ítems.</p>
+        )}
       </div>
-
-      {loading ? (
-        <p style={{ textAlign: 'center' }}>🔄 Cargando ítems...</p>
-      ) : filteredItems.length === 0 ? (
-        <p style={{ textAlign: 'center' }}>❌ No se encontraron ítems.</p>
-      ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '15px' }}>
-          {filteredItems.slice(0, 50).map((item) => {
-            const nombre = item.LocalizedNames['ES-ES'];
-            const icon = `https://render.albiononline.com/v1/item/${item.UniqueName}.png`;
-            const precios = preciosMap[item.UniqueName];
-
-            return (
-              <div key={item.UniqueName} style={{
-                backgroundColor: '#1a1a1a',
-                padding: '10px',
-                borderRadius: '10px',
-                boxShadow: '0 0 5px #444',
-                textAlign: 'center'
-              }}>
-                <Image src={icon} alt={nombre} width={64} height={64} />
-                <h3 style={{ fontSize: '16px', margin: '10px 0' }}>{nombre}</h3>
-                {precios ? (
-                  <div>
-                    <p style={{ margin: '5px 0' }}>
-                      <span style={{ color: 'limegreen' }}>🟢 Compra: {precios.buy.price.toLocaleString()} ({precios.buy.city})</span>
-                    </p>
-                    <p style={{ margin: '5px 0' }}>
-                      <span style={{ color: 'tomato' }}>🔴 Venta: {precios.sell.price.toLocaleString()} ({precios.sell.city})</span>
-                    </p>
-                    <p style={{ marginTop: '5px', color: 'gold' }}>💰 Margen: {precios.margen.toLocaleString()}</p>
-                  </div>
-                ) : (
-                  <p style={{ color: '#888' }}>Cargando precios...</p>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      )}
     </div>
   );
 }

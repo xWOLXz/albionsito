@@ -1,91 +1,108 @@
+// 📁 pages/market.js
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/router';
+import Image from 'next/image';
 
-export default function MarketPage() {
+export default function Market() {
   const [items, setItems] = useState([]);
   const [search, setSearch] = useState('');
-  const [filteredItems, setFilteredItems] = useState([]);
-  const [error, setError] = useState(false);
-
-  const router = useRouter();
-
-  useEffect(() => {
-    const fetchAllItems = async () => {
-      try {
-        const res = await fetch('https://albionsito-backend.onrender.com/items?page=1');
-        const data = await res.json();
-
-        if (data && Array.isArray(data.items)) {
-          setItems(data.items);
-          setFilteredItems(data.items);
-        } else {
-          setError(true);
-        }
-      } catch (err) {
-        console.error('❌ Error cargando items:', err.message);
-        setError(true);
-      }
-    };
-
-    fetchAllItems();
-  }, []);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [loading, setLoading] = useState(false);
+  const [selectedItem, setSelectedItem] = useState(null);
 
   useEffect(() => {
-    if (!search.trim()) {
-      setFilteredItems(items);
-      return;
+    fetchItems();
+  }, [page]);
+
+  const fetchItems = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch(`https://albionsito-backend.onrender.com/items?page=${page}`);
+      const data = await res.json();
+      setItems(data.items);
+      setTotalPages(data.totalPages);
+    } catch (err) {
+      console.error('Error al obtener ítems:', err);
     }
-
-    const filtro = search.toLowerCase();
-    const resultados = items.filter(item =>
-      item.LocalizedNames['ES-ES'].toLowerCase().includes(filtro)
-    );
-    setFilteredItems(resultados);
-  }, [search, items]);
-
-  const verDetalles = (itemId) => {
-    router.push(`/market/${itemId}`);
+    setLoading(false);
   };
 
-  if (error) {
-    return (
-      <div style={{ color: 'white', textAlign: 'center', paddingTop: 40 }}>
-        ❌ Error al cargar datos del backend.
-      </div>
-    );
-  }
+  const fetchDetails = async (itemId) => {
+    try {
+      const res = await fetch(`https://albionsito-backend.onrender.com/precios?itemId=${itemId}`);
+      const data = await res.json();
+      setSelectedItem({ ...data, itemId });
+    } catch (err) {
+      console.error('Error al obtener detalles:', err);
+    }
+  };
+
+  const filtered = items.filter(item =>
+    item.LocalizedNames['ES-ES'].toLowerCase().includes(search.toLowerCase())
+  );
 
   return (
-    <div className="p-4">
-      <h1 className="text-2xl font-bold text-center text-white mb-4">Mercado General</h1>
+    <div className="p-4 text-white">
+      <h1 className="text-3xl font-bold mb-4 text-center">Mercado General</h1>
+
       <input
         type="text"
-        placeholder="🔍 Buscar item..."
-        className="w-full mb-4 px-3 py-2 rounded bg-black text-white border border-yellow-400"
+        placeholder="Buscar ítem..."
         value={search}
-        onChange={e => setSearch(e.target.value)}
+        onChange={(e) => setSearch(e.target.value)}
+        className="w-full p-2 rounded-md text-black mb-4"
       />
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
-        {filteredItems && filteredItems.length > 0 ? (
-          filteredItems.map(item => (
+      {loading ? (
+        <p className="text-center">⏳ Cargando ítems...</p>
+      ) : (
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {filtered.map((item) => (
             <div
               key={item.UniqueName}
-              className="bg-zinc-900 rounded-xl p-4 cursor-pointer hover:scale-105 transition"
-              onClick={() => verDetalles(item.UniqueName)}
+              className="bg-gray-800 p-4 rounded-md hover:bg-gray-700 cursor-pointer"
+              onClick={() => fetchDetails(item.UniqueName)}
             >
-              <img
-                src={`https://render.albiononline.com/v1/item/${item.UniqueName}.png`}
-                alt={item.LocalizedNames['ES-ES']}
-                className="w-16 h-16 mx-auto mb-2"
-              />
-              <h2 className="text-center text-white text-sm">{item.LocalizedNames['ES-ES']}</h2>
+              <div className="flex items-center gap-4">
+                <Image
+                  src={`https://render.albiononline.com/v1/item/${item.UniqueName}.png`}
+                  alt={item.LocalizedNames['ES-ES']}
+                  width={40}
+                  height={40}
+                />
+                <span>{item.LocalizedNames['ES-ES']}</span>
+              </div>
             </div>
-          ))
-        ) : (
-          <p className="text-white text-center col-span-full">No se encontraron ítems.</p>
-        )}
+          ))}
+        </div>
+      )}
+
+      <div className="flex justify-center gap-4 mt-6">
+        <button
+          className="bg-gray-700 px-4 py-2 rounded disabled:opacity-50"
+          disabled={page <= 1}
+          onClick={() => setPage(page - 1)}
+        >
+          ⬅️ Anterior
+        </button>
+        <button
+          className="bg-gray-700 px-4 py-2 rounded disabled:opacity-50"
+          disabled={page >= totalPages}
+          onClick={() => setPage(page + 1)}
+        >
+          Siguiente ➡️
+        </button>
       </div>
+
+      {selectedItem && (
+        <div className="mt-8 p-4 border border-gray-600 rounded-md bg-gray-900">
+          <h2 className="text-xl font-semibold mb-2">Detalles del ítem</h2>
+          <p><strong>Ítem:</strong> {selectedItem.itemId}</p>
+          <p><strong>Precio Venta:</strong> {selectedItem.sell.price} en {selectedItem.sell.city}</p>
+          <p><strong>Precio Compra:</strong> {selectedItem.buy.price} en {selectedItem.buy.city}</p>
+          <p><strong>Margen de Ganancia:</strong> {selectedItem.margen} 🪙</p>
+        </div>
+      )}
     </div>
   );
 }

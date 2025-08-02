@@ -6,9 +6,9 @@ export default function MarketPage() {
 
   useEffect(() => {
     const fetchItems = async () => {
-      const res = await fetch('https://raw.githubusercontent.com/madorin/albion-data/main/items.json');
+      
       const data = await res.json();
-
+      const res = await fetch('https://cdn.albiononline2d.com/data/latest/items.json');
       const itemsFiltrados = data.filter((item) => item.UniqueName && item.LocalizedNames?.['ES-ES']);
       const itemsConImagen = itemsFiltrados.map((item) => ({
         id: item.UniqueName,

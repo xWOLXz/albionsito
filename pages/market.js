@@ -1,120 +1,74 @@
+// pages/market.js
 import { useEffect, useState } from 'react';
 
-const Market = () => {
+export default function Market() {
   const [items, setItems] = useState([]);
   const [search, setSearch] = useState('');
-  const [precios, setPrecios] = useState({});
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const fetchItems = async () => {
-      try {
-        const res = await fetch('https://albionsito-backend.onrender.com/items');
-        const data = await res.json();
-        const filtered = data.filter(
-          item =>
-            item.LocalizedNames?.['ES-ES'] &&
-            item.UniqueName &&
-            !item.UniqueName.includes('TOKEN_') &&
-            !item.UniqueName.includes('JOURNAL') &&
-            !item.UniqueName.includes('TRASH') &&
-            !item.UniqueName.includes('QUESTITEM') &&
-            !item.UniqueName.includes('T8_ROCK') &&
-            !item.UniqueName.includes('T8_TREE') &&
-            !item.UniqueName.includes('T8_ORE') &&
-            !item.UniqueName.includes('T8_HIDE')
-        );
-        setItems(filtered);
-        setLoading(false);
-      } catch (error) {
-        console.error('Error cargando ítems:', error);
-      }
-    };
-    fetchItems();
-  }, []);
-
-  const handleSearch = (e) => {
-    setSearch(e.target.value.toLowerCase());
-  };
-
-  const fetchPrecio = async (itemId) => {
+  const fetchItems = async () => {
+    setLoading(true);
     try {
-      const res = await fetch(`https://albionsito-backend.onrender.com/precios?itemId=${itemId}`);
+      const res = await fetch('https://albionsito-backend.onrender.com/items');
       const data = await res.json();
-      setPrecios(prev => ({ ...prev, [itemId]: data }));
+
+      // 🧠 Flatten XML-style object to array of item objects
+      const rawItems = data.items.shopcategories.flatMap((cat) =>
+        cat.shopsubcategory2.flatMap((sub) => sub)
+      );
+
+      setItems(rawItems);
     } catch (error) {
-      console.error('Error cargando precios:', error);
+      console.error('Error cargando items:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const mostrarItems = items.filter(item =>
-    item.LocalizedNames['ES-ES'].toLowerCase().includes(search)
+  useEffect(() => {
+    fetchItems();
+  }, []);
+
+  const filteredItems = items.filter((item) =>
+    item['@eid']?.toLowerCase().includes(search.toLowerCase())
   );
 
   return (
-    <div style={{ padding: 20 }}>
-      <h1 style={{ textAlign: 'center' }}>Market General</h1>
+    <div style={{ padding: '2rem', background: '#111', color: 'white', minHeight: '100vh' }}>
+      <h1 style={{ fontSize: '2rem', marginBottom: '1rem' }}>Market General</h1>
       <input
         type="text"
-        placeholder="Buscar ítem..."
+        placeholder="Buscar item..."
         value={search}
-        onChange={handleSearch}
+        onChange={(e) => setSearch(e.target.value)}
         style={{
-          display: 'block',
-          margin: '20px auto',
-          padding: '10px',
-          width: '300px',
-          borderRadius: '5px',
-          border: '1px solid #ccc'
+          padding: '0.5rem 1rem',
+          fontSize: '1rem',
+          width: '100%',
+          maxWidth: '400px',
+          marginBottom: '2rem',
         }}
       />
-
       {loading ? (
-        <p style={{ textAlign: 'center' }}>Cargando ítems...</p>
+        <p>Cargando items...</p>
       ) : (
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-          gap: '20px'
-        }}>
-          {mostrarItems.map(item => {
-            const iconUrl = `https://render.albiononline.com/v1/item/${item.UniqueName}.png`;
-            const precio = precios[item.UniqueName];
-
-            if (!precio && !precios[item.UniqueName]) {
-              fetchPrecio(item.UniqueName);
-            }
-
-            return (
-              <div key={item.UniqueName} style={{
-                background: '#1a1a1a',
-                padding: 10,
-                borderRadius: 10,
-                textAlign: 'center'
-              }}>
-                <img
-                  src={iconUrl}
-                  alt={item.UniqueName}
-                  style={{ width: 80, height: 80 }}
-                  onError={(e) => e.target.style.display = 'none'}
-                />
-                <h4>{item.LocalizedNames['ES-ES']}</h4>
-                {precio ? (
-                  <>
-                    <p><strong>Compra máx:</strong> {precio.buy.price.toLocaleString()} ({precio.buy.city})</p>
-                    <p><strong>Venta mín:</strong> {precio.sell.price.toLocaleString()} ({precio.sell.city})</p>
-                    <p><strong>Ganancia:</strong> {precio.margen.toLocaleString()}</p>
-                  </>
-                ) : (
-                  <p>Cargando precios...</p>
-                )}
-              </div>
-            );
-          })}
-        </div>
+        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <thead>
+            <tr>
+              <th style={{ textAlign: 'left', padding: '0.5rem' }}>Item</th>
+              <th style={{ textAlign: 'left', padding: '0.5rem' }}>Valor</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredItems.map((item, idx) => (
+              <tr key={idx}>
+                <td style={{ padding: '0.5rem' }}>{item['@eid']}</td>
+                <td style={{ padding: '0.5rem' }}>{item['@value']}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       )}
     </div>
   );
-};
-
-export default Market;
+}

@@ -9,7 +9,7 @@ const Market = () => {
   useEffect(() => {
     const fetchItems = async () => {
       try {
-        const res = await fetch('https://cdn.albiononline2d.com/data/latest/items.json');
+        const res = await fetch('https://albionsito-backend.onrender.com/items');
         const data = await res.json();
         const filtered = data.filter(
           item =>

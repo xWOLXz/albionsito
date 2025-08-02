@@ -1,104 +1,132 @@
 import { useEffect, useState } from 'react';
 
-export default function Market() {
+const Market = () => {
   const [items, setItems] = useState([]);
-  const [filteredItems, setFilteredItems] = useState([]);
+  const [page, setPage] = useState(1);
+  const [search, setSearch] = useState('');
+  const [precios, setPrecios] = useState({});
   const [loading, setLoading] = useState(true);
-  const [busqueda, setBusqueda] = useState('');
 
-  const fetchItems = async () => {
+  useEffect(() => {
+    const fetchItems = async () => {
+      try {
+        setLoading(true);
+        const res = await fetch(`https://albionsito-backend.onrender.com/items?page=${page}`);
+        const data = await res.json();
+        setItems(data.items);
+        setPrecios({}); // Resetear precios al cambiar de página
+        setLoading(false);
+      } catch (error) {
+        console.error('Error cargando ítems:', error);
+        setLoading(false);
+      }
+    };
+    fetchItems();
+  }, [page]);
+
+  const fetchPrecio = async (itemId) => {
     try {
-      setLoading(true);
-      const res = await fetch('https://albionsito-backend.onrender.com/items');
+      const res = await fetch(`https://albionsito-backend.onrender.com/precios?itemId=${itemId}`);
       const data = await res.json();
-      setItems(data);
-      setFilteredItems(data);
+      setPrecios(prev => ({ ...prev, [itemId]: data }));
     } catch (error) {
-      console.error('Error cargando datos del backend:', error);
-    } finally {
-      setLoading(false);
+      console.error('Error cargando precios:', error);
     }
   };
 
-  useEffect(() => {
-    fetchItems();
-  }, []);
-
-  const handleBuscar = (e) => {
-    const texto = e.target.value.toLowerCase();
-    setBusqueda(texto);
-    const resultados = items.filter((item) =>
-      item.nombre.toLowerCase().includes(texto)
-    );
-    setFilteredItems(resultados);
+  const handleSearch = (e) => {
+    setSearch(e.target.value.toLowerCase());
   };
 
-  const formatoMoneda = (valor) => {
-    return valor.toLocaleString('es-CO');
-  };
+  const mostrarItems = items.filter(item =>
+    item.LocalizedNames['ES-ES'].toLowerCase().includes(search)
+  );
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white p-4">
-      <h1 className="text-2xl font-bold mb-4 text-center">🛒 Mercado de Albion</h1>
-
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
-        <input
-          type="text"
-          placeholder="🔍 Buscar ítem..."
-          className="p-2 rounded bg-gray-800 text-white w-full md:w-1/2"
-          value={busqueda}
-          onChange={handleBuscar}
-        />
-        <button
-          onClick={fetchItems}
-          className="bg-blue-600 hover:bg-blue-700 p-2 rounded w-full md:w-auto"
-          title="Actualizar"
-        >
-          🔄
-        </button>
-      </div>
+    <div style={{ padding: 20 }}>
+      <h1 style={{ textAlign: 'center' }}>Market General</h1>
+      <input
+        type="text"
+        placeholder="Buscar ítem..."
+        value={search}
+        onChange={handleSearch}
+        style={{
+          display: 'block',
+          margin: '20px auto',
+          padding: '10px',
+          width: '300px',
+          borderRadius: '5px',
+          border: '1px solid #ccc'
+        }}
+      />
 
       {loading ? (
-        <div className="flex justify-center items-center mt-10">
-          <img src="/albion-loader.gif" alt="Cargando..." className="w-24 h-24" />
-        </div>
+        <p style={{ textAlign: 'center' }}>Cargando ítems...</p>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full border border-gray-700">
-            <thead className="bg-gray-800">
-              <tr>
-                <th className="p-2 text-left">Ítem</th>
-                <th className="p-2">Compra más baja</th>
-                <th className="p-2">Venta más alta</th>
-                <th className="p-2">Ganancia</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredItems
-                .sort((a, b) => b.ganancia - a.ganancia)
-                .map((item) => (
-                  <tr key={item.item_id} className="border-t border-gray-700 hover:bg-gray-800">
-                    <td className="flex items-center gap-2 p-2">
-                      <img src={item.icono} alt={item.nombre} className="w-6 h-6" />
-                      {item.nombre}
-                    </td>
-                    <td className="text-center">
-                      <div>{formatoMoneda(item.compra)} 🪙</div>
-                      <div className="text-xs text-gray-400">{item.ciudad_compra}</div>
-                    </td>
-                    <td className="text-center">
-                      <div>{formatoMoneda(item.venta)} 🪙</div>
-                      <div className="text-xs text-gray-400">{item.ciudad_venta}</div>
-                    </td>
-                    <td className="text-center text-green-400 font-semibold">
-                      {formatoMoneda(item.ganancia)} 🪙
-                    </td>
-                  </tr>
-                ))}
-            </tbody>
-          </table>
-        </div>
+        <>
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+            gap: '20px'
+          }}>
+            {mostrarItems.map(item => {
+              const iconUrl = `https://render.albiononline.com/v1/item/${item.UniqueName}.png`;
+              const precio = precios[item.UniqueName];
+
+              if (!precio && !precios[item.UniqueName]) {
+                fetchPrecio(item.UniqueName);
+              }
+
+              return (
+                <div key={item.UniqueName} style={{
+                  background: '#1a1a1a',
+                  padding: 10,
+                  borderRadius: 10,
+                  textAlign: 'center',
+                  color: 'white'
+                }}>
+                  <img
+                    src={iconUrl}
+                    alt={item.UniqueName}
+                    style={{ width: 80, height: 80 }}
+                    onError={(e) => e.target.style.display = 'none'}
+                  />
+                  <h4>{item.LocalizedNames['ES-ES']}</h4>
+                  {precio ? (
+                    <>
+                      <p><strong>Compra máx:</strong> {precio.buy.price?.toLocaleString() || 'N/A'} ({precio.buy.city || '-'})</p>
+                      <p><strong>Venta mín:</strong> {precio.sell.price?.toLocaleString() || 'N/A'} ({precio.sell.city || '-'})</p>
+                      <p><strong>Ganancia:</strong> {precio.margen?.toLocaleString() || 'N/A'}</p>
+                    </>
+                  ) : (
+                    <p>Cargando precios...</p>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Paginación */}
+          <div style={{ textAlign: 'center', marginTop: 30 }}>
+            <button
+              onClick={() => setPage(prev => Math.max(prev - 1, 1))}
+              disabled={page === 1}
+              style={{ marginRight: 10, padding: '8px 16px' }}
+            >
+              Anterior
+            </button>
+            <span style={{ margin: '0 10px' }}>Página {page}</span>
+            <button
+              onClick={() => setPage(prev => prev + 1)}
+              style={{ marginLeft: 10, padding: '8px 16px' }}
+            >
+              Siguiente
+            </button>
+          </div>
+        </>
       )}
     </div>
   );
-}
+};
+
+export default Market;

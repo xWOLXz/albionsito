@@ -14,8 +14,8 @@ const Market = () => {
       try {
         const res = await fetch('https://albionsito-backend.onrender.com/items');
         const data = await res.json();
-        setItems(data);
-        setFiltered(data);
+        setItems(data.items);
+        setFiltered(data.items);
         setLoading(false);
       } catch (error) {
         console.error('Error cargando ítems:', error);

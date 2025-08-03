@@ -21,7 +21,7 @@ export default function Market() {
       });
   }, []);
 
-  // ✅ Debounce al escribir
+  // ✅ Buscar ítems por nombre
   useEffect(() => {
     const delayDebounce = setTimeout(() => {
       if (searchTerm.trim() === '') {
@@ -42,7 +42,6 @@ export default function Market() {
   }, [searchTerm, items]);
 
   const handleClick = async (item) => {
-    console.log('🟢 Ítem seleccionado:', item);
     setSelectedItem(item);
     setLoadingData(true);
 
@@ -52,38 +51,28 @@ export default function Market() {
       );
       const data = await res.json();
 
-      if (!Array.isArray(data)) {
-        throw new Error('❌ Formato inesperado de la API');
-      }
+      if (!Array.isArray(data)) throw new Error('❌ Formato inesperado de la API');
 
       let minSell = null;
       let maxBuy = null;
 
       data.forEach((entry) => {
-        if (entry.sell_price_min > 0) {
-          if (!minSell || entry.sell_price_min < minSell.price) {
-            minSell = { price: entry.sell_price_min, city: entry.city };
-          }
+        if (entry.sell_price_min > 0 && (!minSell || entry.sell_price_min < minSell.price)) {
+          minSell = { price: entry.sell_price_min, city: entry.city };
         }
-        if (entry.buy_price_max > 0) {
-          if (!maxBuy || entry.buy_price_max > maxBuy.price) {
-            maxBuy = { price: entry.buy_price_max, city: entry.city };
-          }
+        if (entry.buy_price_max > 0 && (!maxBuy || entry.buy_price_max > maxBuy.price)) {
+          maxBuy = { price: entry.buy_price_max, city: entry.city };
         }
       });
 
-      const margen =
-        minSell && maxBuy ? maxBuy.price - minSell.price : 'No disponible';
+      const margen = minSell && maxBuy ? maxBuy.price - minSell.price : 'No disponible';
 
-      const resultado = {
+      setMarketData({
         venta: minSell,
         compra: maxBuy,
         margen,
         timestamp: data[0]?.sell_price_min_date || 'Desconocido',
-      };
-
-      console.log('📊 Datos de mercado:', resultado);
-      setMarketData(resultado);
+      });
     } catch (error) {
       console.error('❌ Error al obtener datos de mercado:', error);
       setMarketData(null);
@@ -109,28 +98,32 @@ export default function Market() {
       )}
 
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-        {filteredItems.map((item) => (
-          <div
-            key={item.id}
-            onClick={() => handleClick(item)}
-            className="bg-gray-800 rounded-xl p-2 flex flex-col items-center cursor-pointer hover:bg-gray-700 transition"
-          >
-            <img
-              src={item.imagen}
-              alt={item.nombre}
-              className="w-16 h-16 mb-2"
-              onError={(e) => {
-                e.target.src = '/no-img.png';
-              }}
-            />
-            <p className="text-sm text-center">{item.nombre}</p>
-          </div>
-        ))}
+        {filteredItems.map((item) => {
+          const imagen = item.imagen || `https://render.albiononline.com/v1/item/${item.id}.png`;
+
+          return (
+            <div
+              key={item.id}
+              onClick={() => handleClick(item)}
+              className="bg-gray-800 rounded-xl p-2 flex flex-col items-center cursor-pointer hover:bg-gray-700 transition"
+            >
+              <img
+                src={imagen}
+                alt={item.nombre}
+                className="w-16 h-16 mb-2"
+                onError={(e) => {
+                  e.target.src = '/no-img.png';
+                }}
+              />
+              <p className="text-sm text-center">{item.nombre}</p>
+            </div>
+          );
+        })}
       </div>
 
       {selectedItem && (
-        <div className="mt-10 bg-gray-900 p-4 rounded-lg">
-          <h2 className="text-xl font-semibold mb-2">📦 Información de mercado: {selectedItem.nombre}</h2>
+        <div className="mt-10 bg-gray-900 p-4 rounded-lg shadow-xl">
+          <h2 className="text-xl font-semibold mb-2">📦 Datos de Mercado: {selectedItem.nombre}</h2>
 
           {loadingData ? (
             <p className="text-yellow-400">Cargando datos de mercado...</p>
@@ -138,18 +131,25 @@ export default function Market() {
             <>
               <p>
                 📉 <strong>Venta más barata:</strong>{' '}
-                {marketData.venta ? `${marketData.venta.price} en ${marketData.venta.city}` : 'No disponible'}
+                {marketData.venta
+                  ? `${marketData.venta.price} en ${marketData.venta.city}`
+                  : 'No disponible'}
               </p>
               <p>
                 📈 <strong>Compra más cara:</strong>{' '}
-                {marketData.compra ? `${marketData.compra.price} en ${marketData.compra.city}` : 'No disponible'}
+                {marketData.compra
+                  ? `${marketData.compra.price} en ${marketData.compra.city}`
+                  : 'No disponible'}
               </p>
               <p>
                 💸 <strong>Margen:</strong>{' '}
-                {typeof marketData.margen === 'number' ? `${marketData.margen} de ganancia` : marketData.margen}
+                {typeof marketData.margen === 'number'
+                  ? `${marketData.margen} de ganancia`
+                  : marketData.margen}
               </p>
               <p>
-                ⏱️ <strong>Última actualización:</strong> {new Date(marketData.timestamp).toLocaleString('es-CO')}
+                ⏱️ <strong>Última actualización:</strong>{' '}
+                {new Date(marketData.timestamp).toLocaleString('es-CO')}
               </p>
             </>
           ) : (
@@ -159,4 +159,4 @@ export default function Market() {
       )}
     </div>
   );
-                }
+      }

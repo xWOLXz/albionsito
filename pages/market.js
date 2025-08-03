@@ -1,137 +1,95 @@
-import React, { useEffect, useState } from 'react';
+// pages/market.js
+import { useState, useEffect } from 'react';
 
 export default function Market() {
-  const [items, setItems] = useState([]);
-  const [filtered, setFiltered] = useState([]);
+  const [allItems, setAllItems] = useState([]);
   const [search, setSearch] = useState('');
-  const [loading, setLoading] = useState(true);
-  const [selectedItem, setSelectedItem] = useState(null);
-  const [priceData, setPriceData] = useState(null);
+  const [filtered, setFiltered] = useState([]);
+  const [loading, setLoading] = useState(false);
 
+  // Cargar ítems desde el backend (una sola vez)
   useEffect(() => {
     const fetchItems = async () => {
+      setLoading(true);
       try {
         const res = await fetch('https://albionsito-backend.onrender.com/api/items/all');
         const data = await res.json();
-        setItems(data);
-        setLoading(false);
+        setAllItems(data);
       } catch (err) {
-        console.error('Error cargando items:', err);
+        console.error('❌ Error cargando ítems:', err);
       }
+      setLoading(false);
     };
-
     fetchItems();
   }, []);
 
-  const handleSearch = (e) => {
-    const value = e.target.value.toLowerCase();
-    setSearch(value);
-    if (value === '') {
-      setFiltered([]);
-      setSelectedItem(null);
-      return;
-    }
-
-    const filteredResults = items.filter((item) =>
-      item.nombre.toLowerCase().includes(value)
-    );
-    setFiltered(filteredResults);
-    setSelectedItem(null);
-    setPriceData(null);
-  };
-
-  const handleItemClick = async (item) => {
-    setSelectedItem(item);
-    setPriceData(null);
-
-    try {
-      const res = await fetch(`https://albionsito-backend.onrender.com/api/precios?itemId=${item.item_id}`);
-      const data = await res.json();
-      setPriceData(data);
-    } catch (err) {
-      console.error('Error al obtener precios:', err);
-    }
-  };
+  // Filtro con debounce
+  useEffect(() => {
+    const delay = setTimeout(() => {
+      const resultado = allItems.filter(i =>
+        i.nombre.toLowerCase().includes(search.toLowerCase())
+      );
+      setFiltered(resultado.slice(0, 100)); // Limita a 100 resultados
+    }, 300); // espera 300ms antes de filtrar
+    return () => clearTimeout(delay);
+  }, [search, allItems]);
 
   return (
-    <div className="min-h-screen bg-black text-white p-4">
-      <h1 className="text-3xl font-bold text-center mb-4">Market General</h1>
+    <div style={{ padding: '1rem', color: '#fff', fontFamily: 'sans-serif' }}>
+      <h1 style={{ fontSize: '2rem', textAlign: 'center' }}>Market General</h1>
 
-      <div className="flex justify-center mb-4">
+      <div style={{ display: 'flex', justifyContent: 'center', margin: '1rem' }}>
         <input
           type="text"
           placeholder="Buscar ítem..."
           value={search}
-          onChange={handleSearch}
-          className="p-2 rounded-md text-black w-full max-w-md"
+          onChange={e => setSearch(e.target.value)}
+          style={{
+            padding: '0.5rem',
+            borderRadius: '8px',
+            border: '1px solid #ccc',
+            width: '100%',
+            maxWidth: '400px'
+          }}
         />
       </div>
 
-      {loading ? (
-        <div className="flex justify-center mt-10">
-          <img src="/albion-loader.gif" alt="Cargando..." className="w-20 h-20" />
-        </div>
-      ) : (
-        <>
-          {filtered.length > 0 && (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-              {filtered.map((item) => (
-                <div
-                  key={item.item_id}
-                  onClick={() => handleItemClick(item)}
-                  className="bg-gray-800 hover:bg-gray-700 cursor-pointer p-2 rounded-lg flex flex-col items-center"
-                >
-                  <img
-                    src={`https://render.albiononline.com/v1/item/${item.imagen}.png`}
-                    alt={item.nombre}
-                    className="w-12 h-12 mb-2"
-                  />
-                  <span className="text-center text-sm">{item.nombre}</span>
-                </div>
-              ))}
-            </div>
-          )}
+      {loading && <p style={{ textAlign: 'center' }}>Cargando ítems...</p>}
 
-          {selectedItem && priceData && (
-            <div className="mt-8 bg-gray-900 p-4 rounded-lg">
-              <h2 className="text-xl font-bold mb-2">Precios de: {selectedItem.nombre}</h2>
-              <img
-                src={`https://render.albiononline.com/v1/item/${selectedItem.imagen}.png`}
-                alt={selectedItem.nombre}
-                className="w-16 h-16 mb-2"
-              />
-              <div className="overflow-x-auto">
-                <table className="w-full table-auto border border-white">
-                  <thead>
-                    <tr>
-                      <th className="px-2 py-1 border border-white">Ciudad</th>
-                      <th className="px-2 py-1 border border-white">Más Barato (Venta)</th>
-                      <th className="px-2 py-1 border border-white">Más Caro (Compra)</th>
-                      <th className="px-2 py-1 border border-white">Margen</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {priceData.map((row, idx) => (
-                      <tr key={idx}>
-                        <td className="px-2 py-1 border border-white">{row.ciudad}</td>
-                        <td className="px-2 py-1 border border-white">
-                          {row.venta?.toLocaleString() || '—'}
-                        </td>
-                        <td className="px-2 py-1 border border-white">
-                          {row.compra?.toLocaleString() || '—'}
-                        </td>
-                        <td className="px-2 py-1 border border-white">
-                          {row.margen ? row.margen.toLocaleString() : '—'}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-        </>
+      {!loading && filtered.length === 0 && search.length > 0 && (
+        <p style={{ textAlign: 'center' }}>No se encontraron ítems.</p>
       )}
+
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+        gap: '1rem',
+        padding: '1rem'
+      }}>
+        {filtered.map(item => (
+          <a
+            key={item.item_id}
+            href={`/market/${item.item_id}`}
+            style={{
+              background: '#1a1a1a',
+              padding: '0.5rem',
+              borderRadius: '12px',
+              textDecoration: 'none',
+              color: 'white',
+              textAlign: 'center',
+              transition: 'all 0.2s ease-in-out'
+            }}
+          >
+            <img
+              src={`https://render.albiononline.com/v1/item/${item.item_id}.png`}
+              alt={item.nombre}
+              style={{ width: '64px', height: '64px', marginBottom: '0.5rem' }}
+              onError={(e) => e.target.style.display = 'none'}
+            />
+            <div style={{ fontSize: '0.95rem' }}>{item.nombre}</div>
+          </a>
+        ))}
+      </div>
     </div>
   );
 }

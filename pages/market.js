@@ -1,83 +1,138 @@
-import { useEffect, useState } from 'react';
+import { useState, useEffect } from "react";
 
 export default function Market() {
   const [items, setItems] = useState([]);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filteredItems, setFilteredItems] = useState([]);
+  const [query, setQuery] = useState("");
+  const [filtered, setFiltered] = useState([]);
+  const [selectedItem, setSelectedItem] = useState(null);
+  const [prices, setPrices] = useState(null);
 
-  // ✅ Cargar items.json desde /public
   useEffect(() => {
-    fetch('/items.json')
+    fetch("/items.json")
       .then((res) => res.json())
       .then((data) => {
         setItems(data);
-        console.log('✅ Items cargados:', data.length);
+        console.log("✅ Items cargados:", data.length);
       })
-      .catch((error) => {
-        console.error('❌ Error al cargar items.json:', error);
-      });
+      .catch((err) => console.error("Error cargando items.json:", err));
   }, []);
 
-  // ✅ Debounce al escribir
   useEffect(() => {
-    const delayDebounce = setTimeout(() => {
-      if (searchTerm.trim() === '') {
-        setFilteredItems([]);
-        return;
-      }
+    if (query.trim() === "") {
+      setFiltered([]);
+      return;
+    }
 
-      const resultados = items.filter((item) =>
-        item.nombre.toLowerCase().includes(searchTerm.toLowerCase())
-      );
+    const resultados = items.filter((item) =>
+      item.nombre.toLowerCase().includes(query.toLowerCase())
+    );
 
-      console.log('🔎 Buscando:', searchTerm);
-      console.log('📦 Resultados encontrados:', resultados.length);
-      setFilteredItems(resultados);
-    }, 300); // ⏱ Espera 300ms
+    setFiltered(resultados);
+  }, [query, items]);
 
-    return () => clearTimeout(delayDebounce);
-  }, [searchTerm, items]);
+  const handleSelectItem = (item) => {
+    setSelectedItem(item);
+    fetch(
+      `https://www.albion-online-data.com/api/v2/stats/prices/${item.id}.json`
+    )
+      .then((res) => res.json())
+      .then((data) => {
+        const sell = data
+          .filter((d) => d.sell_price_min > 0)
+          .sort((a, b) => a.sell_price_min - b.sell_price_min)[0];
 
-  const handleClick = (item) => {
-    console.log('🟢 Item seleccionado:', item);
-    alert(`ID del item: ${item.id}`);
+        const buy = data
+          .filter((d) => d.buy_price_max > 0)
+          .sort((a, b) => b.buy_price_max - a.buy_price_max)[0];
+
+        const margen =
+          sell && buy ? sell.sell_price_min - buy.buy_price_max : null;
+
+        setPrices({
+          venta: sell?.sell_price_min || "—",
+          ciudadVenta: sell?.city || "—",
+          compra: buy?.buy_price_max || "—",
+          ciudadCompra: buy?.city || "—",
+          margen: margen ?? "—",
+        });
+      })
+      .catch((err) => {
+        console.error("Error consultando precios:", err);
+        setPrices(null);
+      });
   };
 
   return (
-    <div className="p-4">
-      <h1 className="text-2xl font-bold mb-4">🔍 Buscar Ítem (desde items.json)</h1>
+    <div className="p-4 bg-black text-white min-h-screen">
+      <h1 className="text-2xl font-bold mb-4 text-center">
+        🔍 Buscar Ítem (desde items.json)
+      </h1>
 
       <input
         type="text"
-        placeholder="Buscar ítem (ej: espada, capa, montura...)"
-        value={searchTerm}
-        onChange={(e) => setSearchTerm(e.target.value)}
-        className="w-full p-2 border rounded-md mb-4 text-black"
+        className="w-full p-2 mb-4 text-black rounded"
+        placeholder="Espada, capa, montura..."
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
       />
 
-      {filteredItems.length === 0 && searchTerm !== '' && (
-        <p className="text-gray-400">Sin resultados para: "{searchTerm}"</p>
+      {filtered.length > 0 && (
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+          {filtered.slice(0, 30).map((item) => (
+            <div
+              key={item.id}
+              onClick={() => handleSelectItem(item)}
+              className="bg-gray-800 hover:bg-gray-700 cursor-pointer p-2 rounded"
+            >
+              <img
+                src={item.imagen}
+                alt={item.nombre}
+                loading="lazy"
+                onError={(e) =>
+                  (e.target.src = "/no-image.png") // Imagen fallback si no carga
+                }
+                className="w-full h-20 object-contain mb-2"
+              />
+              <p className="text-sm text-center">{item.nombre}</p>
+            </div>
+          ))}
+        </div>
       )}
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-        {filteredItems.map((item) => (
-          <div
-            key={item.id}
-            onClick={() => handleClick(item)}
-            className="bg-gray-800 rounded-xl p-2 flex flex-col items-center cursor-pointer hover:bg-gray-700 transition"
-          >
-            <img
-              src={item.imagen}
-              alt={item.nombre}
-              className="w-16 h-16 mb-2"
-              onError={(e) => {
-                e.target.src = '/no-img.png';
-              }}
-            />
-            <p className="text-sm text-center">{item.nombre}</p>
-          </div>
-        ))}
-      </div>
+      {selectedItem && prices && (
+        <div className="mt-8 bg-gray-900 p-4 rounded shadow-md">
+          <h2 className="text-xl font-bold mb-2">{selectedItem.nombre}</h2>
+          <img
+            src={selectedItem.imagen}
+            alt={selectedItem.nombre}
+            loading="lazy"
+            onError={(e) => (e.target.src = "/no-image.png")}
+            className="w-24 h-24 mb-2"
+          />
+          <p>
+            💰 <strong>Venta más baja:</strong> {prices.venta} (
+            {prices.ciudadVenta})
+          </p>
+          <p>
+            🛒 <strong>Compra más alta:</strong> {prices.compra} (
+            {prices.ciudadCompra})
+          </p>
+          <p>
+            📈 <strong>Margen estimado:</strong>{" "}
+            <span
+              className={
+                prices.margen > 0
+                  ? "text-green-400"
+                  : prices.margen < 0
+                  ? "text-red-400"
+                  : "text-white"
+              }
+            >
+              {prices.margen}
+            </span>
+          </p>
+        </div>
+      )}
     </div>
   );
-          }
+}

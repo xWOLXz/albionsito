@@ -1,136 +1,131 @@
-import { useState, useEffect } from "react";
+// pages/market.js
+import { useState, useEffect } from 'react';
+import Image from 'next/image';
 
 export default function Market() {
   const [items, setItems] = useState([]);
-  const [query, setQuery] = useState("");
-  const [filtered, setFiltered] = useState([]);
+  const [search, setSearch] = useState('');
+  const [filteredItems, setFilteredItems] = useState([]);
   const [selectedItem, setSelectedItem] = useState(null);
-  const [prices, setPrices] = useState(null);
+  const [itemData, setItemData] = useState(null);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    fetch("/items.json")
-      .then((res) => res.json())
-      .then((data) => {
-        setItems(data);
-        console.log("✅ Items cargados:", data.length);
-      })
-      .catch((err) => console.error("Error cargando items.json:", err));
+    const fetchItems = async () => {
+      const res = await fetch('/items.json');
+      const data = await res.json();
+      setItems(data);
+      console.log(`📦 Items cargados: ${data.length}`);
+    };
+
+    fetchItems();
   }, []);
 
   useEffect(() => {
-    if (query.trim() === "") {
-      setFiltered([]);
-      return;
-    }
+    const timeout = setTimeout(() => {
+      const filtered = items.filter(item =>
+        item.localizedNames['ES-ES']?.toLowerCase().includes(search.toLowerCase())
+      );
+      setFilteredItems(filtered);
+      console.log(`🔍 Buscando: ${search}`);
+      console.log(`📊 Resultados encontrados: ${filtered.length}`);
+    }, 100);
 
-    const resultados = items.filter((item) =>
-      item.nombre.toLowerCase().includes(query.toLowerCase())
-    );
+    return () => clearTimeout(timeout);
+  }, [search, items]);
 
-    setFiltered(resultados);
-  }, [query, items]);
-
-  const handleSelectItem = (item) => {
+  const handleSelectItem = async (item) => {
     setSelectedItem(item);
-    fetch(
-      `https://www.albion-online-data.com/api/v2/stats/prices/${item.id}.json`
-    )
-      .then((res) => res.json())
-      .then((data) => {
-        const sell = data
-          .filter((d) => d.sell_price_min > 0)
-          .sort((a, b) => a.sell_price_min - b.sell_price_min)[0];
+    setItemData(null);
+    setLoading(true);
+    const itemId = item.uniquename;
 
-        const buy = data
-          .filter((d) => d.buy_price_max > 0)
-          .sort((a, b) => b.buy_price_max - a.buy_price_max)[0];
+    try {
+      const res = await fetch(`https://www.albion-online-data.com/api/v2/stats/prices/${itemId}.json`);
+      const data = await res.json();
 
-        const margen =
-          sell && buy ? sell.sell_price_min - buy.buy_price_max : null;
+      // Agrupar por ciudad
+      const sortedSell = [...data].filter(e => e.sell_price_min > 0).sort((a, b) => a.sell_price_min - b.sell_price_min);
+      const sortedBuy = [...data].filter(e => e.buy_price_max > 0).sort((a, b) => b.buy_price_max - a.buy_price_max);
 
-        setPrices({
-          venta: sell?.sell_price_min || "—",
-          ciudadVenta: sell?.city || "—",
-          compra: buy?.buy_price_max || "—",
-          ciudadCompra: buy?.city || "—",
-          margen: margen ?? "—",
-        });
-      })
-      .catch((err) => {
-        console.error("Error consultando precios:", err);
-        setPrices(null);
-      });
+      const sell = sortedSell[0];
+      const buy = sortedBuy[0];
+
+      if (sell && buy) {
+        const margin = buy.buy_price_max - sell.sell_price_min;
+        setItemData({ sell, buy, margin });
+      } else {
+        setItemData({ error: 'No hay suficientes datos de compra/venta para este ítem.' });
+      }
+    } catch (error) {
+      setItemData({ error: 'Error al consultar la API del mercado.' });
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
-    <div className="p-4 bg-black text-white min-h-screen">
-      <h1 className="text-2xl font-bold mb-4 text-center">
-        🔍 Buscar Ítem (desde items.json)
-      </h1>
-
+    <div className="min-h-screen bg-black text-white p-4">
+      <h1 className="text-2xl font-bold mb-4 text-center">🔍 Buscar Ítem (desde items.json)</h1>
       <input
         type="text"
-        className="w-full p-2 mb-4 text-black rounded"
-        placeholder="Espada, capa, montura..."
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
+        placeholder="Ejemplo: Claymore, Capucha..."
+        className="w-full p-2 rounded bg-gray-800 text-white placeholder-gray-400 mb-6"
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
       />
 
-      {filtered.length > 0 && (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-          {filtered.slice(0, 30).map((item) => (
-            <div
-              key={item.id}
-              onClick={() => handleSelectItem(item)}
-              className="bg-gray-800 hover:bg-gray-700 cursor-pointer p-2 rounded"
-            >
-              <img
-                src={item.imagen}
-                alt={item.nombre}
-                loading="lazy"
-                onError={(e) =>
-                  (e.target.src = "/no-image.png") // Imagen fallback si no carga
-                }
-                className="w-full h-20 object-contain mb-2"
-              />
-              <p className="text-sm text-center">{item.nombre}</p>
-            </div>
-          ))}
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+        {filteredItems.slice(0, 50).map(item => (
+          <div
+            key={item.uniquename}
+            className="cursor-pointer bg-gray-900 p-2 rounded hover:scale-105 transition-transform"
+            onClick={() => handleSelectItem(item)}
+          >
+            <img
+              src={`https://render.albiononline.com/v1/item/${item.uniquename}.png`}
+              alt={item.localizedNames['ES-ES']}
+              className="w-full h-24 object-contain mb-2"
+              onError={(e) => e.target.style.display = 'none'}
+            />
+            <p className="text-center text-sm">{item.localizedNames['ES-ES']}</p>
+          </div>
+        ))}
+      </div>
+
+      {loading && (
+        <div className="mt-6 text-center">
+          <p className="animate-pulse text-lg">🌐 Consultando mercado en tiempo real...
+          </p>
         </div>
       )}
 
-      {selectedItem && prices && (
-        <div className="mt-8 bg-gray-900 p-4 rounded shadow-md">
-          <h2 className="text-xl font-bold mb-2">{selectedItem.nombre}</h2>
-          <img
-            src={selectedItem.imagen}
-            alt={selectedItem.nombre}
-            loading="lazy"
-            onError={(e) => (e.target.src = "/no-image.png")}
-            className="w-24 h-24 mb-2"
-          />
-          <p>
-            💰 <strong>Venta más baja:</strong> {prices.venta} (
-            {prices.ciudadVenta})
-          </p>
-          <p>
-            🛒 <strong>Compra más alta:</strong> {prices.compra} (
-            {prices.ciudadCompra})
-          </p>
-          <p>
-            📈 <strong>Margen estimado:</strong>{" "}
-            <span
-              className={
-                prices.margen > 0
-                  ? "text-green-400"
-                  : prices.margen < 0
-                  ? "text-red-400"
-                  : "text-white"
-              }
-            >
-              {prices.margen}
-            </span>
-          </p>
+      {selectedItem && itemData && (
+        <div className="mt-8 bg-gray-800 p-4 rounded shadow-lg">
+          <h2 className="text-xl font-semibold mb-2">📦 Datos de Mercado para: {selectedItem.localizedNames['ES-ES']}
+          </h2>
+          {itemData.error ? (
+            <p className="text-red-400">{itemData.error}</p>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
+              <div>
+                <h3 className="font-bold text-green-400">💸 Mejor compra</h3>
+                <p className="text-white">{itemData.buy.buy_price_max.toLocaleString()} plata</p>
+                <p className="text-gray-400 text-sm">Ciudad: {itemData.buy.city}</p>
+              </div>
+              <div>
+                <h3 className="font-bold text-red-400">🛒 Mejor venta</h3>
+                <p className="text-white">{itemData.sell.sell_price_min.toLocaleString()} plata</p>
+                <p className="text-gray-400 text-sm">Ciudad: {itemData.sell.city}</p>
+              </div>
+              <div>
+                <h3 className="font-bold text-yellow-400">💰 Margen</h3>
+                <p className="text-white">
+                  {(itemData.margin).toLocaleString()} plata
+                </p>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

@@ -12,7 +12,7 @@ export default function MarketPage() {
     // Precarga los nombres e IDs de todos los ítems una sola vez
     const cargarItems = async () => {
       try {
-        const res = await fetch('https://albionsito-backend.onrender.com/api/items/all');
+        const res = await fetch('https://albionsito-backend.onrender.com/api/items');
         const data = await res.json();
         setItems(data);
       } catch (error) {

@@ -1,90 +1,89 @@
-// pages/market.js
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
 
 export default function Market() {
   const [items, setItems] = useState([]);
-  const [search, setSearch] = useState('');
-  const [filteredItems, setFilteredItems] = useState([]);
+  const [filtered, setFiltered] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [busqueda, setBusqueda] = useState('');
 
   useEffect(() => {
-    fetch('/items.json')
-      .then((res) => res.json())
-      .then((data) => {
+    const fetchItems = async () => {
+      try {
+        const res = await fetch('/items.json');
+        const data = await res.json();
         setItems(data);
-        console.log('📦 Items cargados:', data.length);
-      })
-      .catch((err) => console.error('Error al cargar items.json:', err));
+        setFiltered(data);
+        console.log('📦 Ítems cargados:', data.length);
+      } catch (error) {
+        console.error('Error al cargar items.json:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchItems();
   }, []);
 
-  useEffect(() => {
-    const timeout = setTimeout(() => {
-      const term = search.toLowerCase();
-      const filtered = items.filter((item) => {
-        const nameES = item?.LocalizedNames?.['ES-ES'] || '';
-        return nameES.toLowerCase().includes(term);
-      });
-      setFilteredItems(filtered);
-      console.log('🔍 Buscando:', search);
-      console.log('📊 Resultados encontrados:', filtered.length);
-    }, 200);
+  const handleChange = (e) => {
+    const texto = e.target.value;
+    setBusqueda(texto);
 
-    return () => clearTimeout(timeout);
-  }, [search, items]);
+    if (texto.trim() === '') {
+      setFiltered(items);
+      return;
+    }
+
+    const resultado = items.filter(item =>
+      item.nombre?.toLowerCase().includes(texto.toLowerCase())
+    );
+
+    setFiltered(resultado);
+  };
 
   const handleItemClick = (item) => {
-    const id = item.UniqueName;
-    const name = item?.LocalizedNames?.['ES-ES'] || 'Sin nombre';
-    const imageUrl = `https://render.albiononline.com/v1/item/${id}.png`;
-    const selected = { id, nombre: name, imagen: imageUrl };
-    console.log('📌 Ítem seleccionado:', selected);
-    alert(`ID del ítem: ${id}`);
+    alert(`ID del ítem: ${item.id}`);
+    console.log('🟢 Ítem seleccionado:', item);
+    // Aquí se podrá luego llamar a la API con item.id
   };
 
   return (
-    <div className="p-4 bg-black min-h-screen text-white">
-      <h1 className="text-2xl font-bold mb-4 text-center">
-        🔍 Buscar Ítem (desde items.json)
-      </h1>
+    <div className="bg-black min-h-screen text-white p-4">
+      <h1 className="text-2xl font-bold mb-4 text-center">🔍 Buscar Ítem (desde items.json)</h1>
 
       <div className="flex justify-center mb-6">
         <input
           type="text"
-          placeholder="Buscar por nombre en español..."
-          className="p-2 rounded-md text-black w-full max-w-md"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Ej: Espada, capa, montura..."
+          className="w-full max-w-md px-4 py-2 rounded-md text-black"
+          value={busqueda}
+          onChange={handleChange}
         />
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-        {filteredItems.map((item) => {
-          const id = item.UniqueName;
-          const name = item?.LocalizedNames?.['ES-ES'] || 'Sin nombre';
-          const imageUrl = `https://render.albiononline.com/v1/item/${id}.png`;
-
-          return (
+      {loading ? (
+        <p className="text-center">Cargando ítems...</p>
+      ) : (
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+          {filtered.map((item, index) => (
             <div
-              key={id}
-              className="bg-zinc-900 p-2 rounded-xl hover:scale-105 transition cursor-pointer shadow-md"
+              key={index}
+              className="bg-gray-800 hover:bg-gray-700 p-2 rounded-lg cursor-pointer text-center"
               onClick={() => handleItemClick(item)}
             >
               <Image
-                src={imageUrl}
-                alt={name}
-                width={80}
-                height={80}
-                className="mx-auto rounded"
+                src={item.imagen}
+                alt={item.nombre || item.id}
+                width={100}
+                height={100}
+                className="mx-auto mb-2 rounded"
+                unoptimized
+                onError={(e) => (e.target.style.display = 'none')}
               />
-              <p className="text-center text-sm mt-2">{name}</p>
+              <p className="text-sm">{item.nombre || item.id}</p>
             </div>
-          );
-        })}
-      </div>
-
-      {filteredItems.length === 0 && search.trim() !== '' && (
-        <p className="text-center text-zinc-400 mt-10">❌ No se encontraron ítems con ese nombre.</p>
+          ))}
+        </div>
       )}
     </div>
   );
-}
+            }

@@ -5,7 +5,7 @@ export default function Market() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filteredItems, setFilteredItems] = useState([]);
 
-  // Cargar items.json desde public/
+  // ✅ Cargar items.json desde /public
   useEffect(() => {
     fetch('/items.json')
       .then((res) => res.json())
@@ -14,24 +14,28 @@ export default function Market() {
         console.log('✅ Items cargados:', data.length);
       })
       .catch((error) => {
-        console.error('❌ Error cargando items.json:', error);
+        console.error('❌ Error al cargar items.json:', error);
       });
   }, []);
 
-  // Buscar por nombre
+  // ✅ Debounce al escribir
   useEffect(() => {
-    if (searchTerm.trim() === '') {
-      setFilteredItems([]);
-      return;
-    }
+    const delayDebounce = setTimeout(() => {
+      if (searchTerm.trim() === '') {
+        setFilteredItems([]);
+        return;
+      }
 
-    const resultados = items.filter((item) =>
-      item.nombre.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+      const resultados = items.filter((item) =>
+        item.nombre.toLowerCase().includes(searchTerm.toLowerCase())
+      );
 
-    console.log('🔎 Buscando:', searchTerm);
-    console.log('📦 Resultados encontrados:', resultados.length);
-    setFilteredItems(resultados);
+      console.log('🔎 Buscando:', searchTerm);
+      console.log('📦 Resultados encontrados:', resultados.length);
+      setFilteredItems(resultados);
+    }, 300); // ⏱ Espera 300ms
+
+    return () => clearTimeout(delayDebounce);
   }, [searchTerm, items]);
 
   const handleClick = (item) => {
@@ -42,9 +46,10 @@ export default function Market() {
   return (
     <div className="p-4">
       <h1 className="text-2xl font-bold mb-4">🔍 Buscar Ítem (desde items.json)</h1>
+
       <input
         type="text"
-        placeholder="Buscar por nombre (ej: espada, capa, montura...)"
+        placeholder="Buscar ítem (ej: espada, capa, montura...)"
         value={searchTerm}
         onChange={(e) => setSearchTerm(e.target.value)}
         className="w-full p-2 border rounded-md mb-4 text-black"
@@ -61,11 +66,18 @@ export default function Market() {
             onClick={() => handleClick(item)}
             className="bg-gray-800 rounded-xl p-2 flex flex-col items-center cursor-pointer hover:bg-gray-700 transition"
           >
-            <img src={item.imagen} alt={item.nombre} className="w-16 h-16 mb-2" />
+            <img
+              src={item.imagen}
+              alt={item.nombre}
+              className="w-16 h-16 mb-2"
+              onError={(e) => {
+                e.target.src = '/no-img.png';
+              }}
+            />
             <p className="text-sm text-center">{item.nombre}</p>
           </div>
         ))}
       </div>
     </div>
   );
-}
+          }

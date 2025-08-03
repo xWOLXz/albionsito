@@ -42,9 +42,18 @@ export default function MarketPage() {
     setBusqueda('');
     setCargando(true);
     try {
-      const res = await fetch(`https://albionsito-backend.onrender.com/api/precios?itemId=${item.item_id}`);
-      const data = await res.json();
-      setPrecios(data);
+  const encodedId = encodeURIComponent(item.item_id);
+  const res = await fetch(`https://albionsito-backend.onrender.com/api/precios?itemId=${encodedId}`);
+  
+  if (!res.ok) {
+    throw new Error(`Error ${res.status}`);
+  }
+
+  const data = await res.json();
+  setPrecios(data);
+    } catch (err) {
+  console.error('Error al cargar precios:', err.message);
+  setPrecios(null); // para que muestre "No se pudo cargar el precio"
     } catch (error) {
       console.error('Error al cargar precios:', error.message);
     } finally {

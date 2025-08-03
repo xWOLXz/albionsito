@@ -9,18 +9,17 @@ export default function MarketPage() {
   const [cargando, setCargando] = useState(false);
 
   useEffect(() => {
-    // Precargar todos los ítems una vez
-    const cargarItems = async () => {
-      try {
-        const res = await fetch('https://albionsito-backend.onrender.com/items');
-        const data = await res.json();
-        setItems(data);
-      } catch (error) {
-        console.error('Error al cargar ítems:', error.message);
-      }
-    };
-    cargarItems();
-  }, []);
+  const cargarItems = async () => {
+    try {
+      const res = await fetch('https://albionsito-backend.onrender.com/items'); // CORREGIDO
+      const data = await res.json();
+      setItems(data);
+    } catch (error) {
+      console.error('Error al cargar ítems:', error.message);
+    }
+  };
+  cargarItems();
+}, []);
 
   const handleBuscar = (texto) => {
     setBusqueda(texto);

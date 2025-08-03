@@ -13,9 +13,7 @@ export default function MarketPage() {
       try {
         const res = await fetch('https://albionsito-backend.onrender.com/items');
         const data = await res.json();
-
-        // ✅ Asegura que cargamos solo el array
-        setItems(data.items);
+        setItems(data.items); // ✅ accede directamente al array de ítems
       } catch (error) {
         console.error('Error al cargar ítems:', error.message);
       }
@@ -30,11 +28,15 @@ export default function MarketPage() {
     } else {
       const encontrados = items
         .filter(item =>
-          item.nombre &&
-          item.nombre.toLowerCase().includes(texto.toLowerCase())
+          item?.LocalizedNames?.['ES-ES']?.toLowerCase().includes(texto.toLowerCase())
         )
         .slice(0, 20);
-      setResultados(encontrados);
+      const adaptados = encontrados.map(item => ({
+        item_id: item.UniqueName,
+        nombre: item.LocalizedNames['ES-ES'],
+        imagen: `https://render.albiononline.com/v1/item/${item.UniqueName}.png`
+      }));
+      setResultados(adaptados);
     }
   };
 
@@ -120,4 +122,4 @@ export default function MarketPage() {
       )}
     </div>
   );
-            }
+}

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import itemsData from '../utils/items.json';
 import Image from 'next/image';
 
@@ -12,11 +12,13 @@ export default function Market() {
   const cities = ['Caerleon', 'Martlock', 'Bridgewatch', 'Thetford', 'Fort Sterling', 'Lymhurst'];
 
   const handleSearch = (e) => {
-    const term = e.target.value.toLowerCase();
+    const term = e.target.value;
     setSearchTerm(term);
     if (term.length > 2) {
-      const results = itemsData.filter((item) =>
-        item.name.toLowerCase().includes(term)
+      const results = itemsData.filter(
+        (item) =>
+          item?.LocalizedNames?.['ES-ES'] &&
+          item.LocalizedNames['ES-ES'].toLowerCase().includes(term.toLowerCase())
       );
       setFilteredItems(results.slice(0, 10));
     } else {
@@ -44,8 +46,8 @@ export default function Market() {
   const handleItemClick = (item) => {
     setSelectedItem(item);
     setFilteredItems([]);
-    setSearchTerm(item.name);
-    fetchMarketData(item.id);
+    setSearchTerm(item.LocalizedNames['ES-ES']);
+    fetchMarketData(item.UniqueName);
   };
 
   const getLowestSell = () => {
@@ -81,16 +83,16 @@ export default function Market() {
           <ul className="absolute z-10 bg-gray-800 w-full mt-1 rounded shadow-lg max-h-64 overflow-y-auto">
             {filteredItems.map((item) => (
               <li
-                key={item.id}
+                key={item.UniqueName}
                 className="flex items-center gap-2 px-4 py-2 hover:bg-gray-700 cursor-pointer"
                 onClick={() => handleItemClick(item)}
               >
                 <img
-                  src={`https://render.albiononline.com/v1/item/${item.id}.png`}
-                  alt={item.name}
+                  src={`https://render.albiononline.com/v1/item/${item.UniqueName}.png`}
+                  alt={item.LocalizedNames['ES-ES']}
                   className="w-6 h-6"
                 />
-                {item.name}
+                {item.LocalizedNames['ES-ES']}
               </li>
             ))}
           </ul>
@@ -107,11 +109,11 @@ export default function Market() {
         <div className="mt-8 bg-gray-800 p-4 rounded shadow max-w-3xl mx-auto">
           <div className="flex items-center gap-4 mb-4">
             <img
-              src={`https://render.albiononline.com/v1/item/${selectedItem.id}.png`}
-              alt={selectedItem.name}
+              src={`https://render.albiononline.com/v1/item/${selectedItem.UniqueName}.png`}
+              alt={selectedItem.LocalizedNames['ES-ES']}
               className="w-12 h-12"
             />
-            <h2 className="text-xl font-semibold">{selectedItem.name}</h2>
+            <h2 className="text-xl font-semibold">{selectedItem.LocalizedNames['ES-ES']}</h2>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -139,4 +141,4 @@ export default function Market() {
       )}
     </div>
   );
-            }
+                }

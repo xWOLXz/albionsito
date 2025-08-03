@@ -14,12 +14,15 @@ export default function Market() {
   const handleSearch = (e) => {
     const term = e.target.value;
     setSearchTerm(term);
+    console.log('🔍 Buscando:', term);
+
     if (term.length > 2) {
       const results = itemsData.filter(
         (item) =>
           item?.LocalizedNames?.['ES-ES'] &&
           item.LocalizedNames['ES-ES'].toLowerCase().includes(term.toLowerCase())
       );
+      console.log('🎯 Resultados encontrados:', results.length);
       setFilteredItems(results.slice(0, 10));
     } else {
       setFilteredItems([]);
@@ -30,13 +33,14 @@ export default function Market() {
     try {
       setLoading(true);
       const locations = cities.join(',');
-      const response = await fetch(
-        `https://west.albion-online-data.com/api/v2/stats/prices/${itemId}.json?locations=${locations}&qualities=1`
-      );
+      const url = `https://west.albion-online-data.com/api/v2/stats/prices/${itemId}.json?locations=${locations}&qualities=1`;
+      console.log('🌐 Consultando API:', url);
+      const response = await fetch(url);
       const data = await response.json();
+      console.log('📦 Respuesta de la API:', data);
       setMarketData(data);
     } catch (error) {
-      console.error('Error fetching market data:', error);
+      console.error('❌ Error consultando la API:', error);
       setMarketData(null);
     } finally {
       setLoading(false);
@@ -44,6 +48,7 @@ export default function Market() {
   };
 
   const handleItemClick = (item) => {
+    console.log('✅ Ítem seleccionado:', item);
     setSelectedItem(item);
     setFilteredItems([]);
     setSearchTerm(item.LocalizedNames['ES-ES']);
@@ -141,4 +146,4 @@ export default function Market() {
       )}
     </div>
   );
-                }
+}

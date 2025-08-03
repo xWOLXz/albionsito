@@ -14,7 +14,7 @@ export default function MarketPage() {
         const res = await fetch('https://albionsito-backend.onrender.com/items');
         const data = await res.json();
 
-        // ✅ Usamos solo el array real
+        // ✅ Asegura que cargamos solo el array
         setItems(data.items);
       } catch (error) {
         console.error('Error al cargar ítems:', error.message);
@@ -30,6 +30,7 @@ export default function MarketPage() {
     } else {
       const encontrados = items
         .filter(item =>
+          item.nombre &&
           item.nombre.toLowerCase().includes(texto.toLowerCase())
         )
         .slice(0, 20);
@@ -119,4 +120,4 @@ export default function MarketPage() {
       )}
     </div>
   );
-}
+            }

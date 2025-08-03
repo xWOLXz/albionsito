@@ -1,12 +1,20 @@
 import { useEffect, useState } from 'react';
 
+const CITIES = [
+  'Bridgewatch',
+  'Martlock',
+  'Thetford',
+  'Fort Sterling',
+  'Lymhurst',
+  'Brecilien',
+];
+
 export default function Market() {
   const [items, setItems] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [filteredItems, setFilteredItems] = useState([]);
   const [selectedItem, setSelectedItem] = useState(null);
   const [marketData, setMarketData] = useState(null);
-  const [loadingData, setLoadingData] = useState(false);
 
   // ✅ Cargar items.json desde /public
   useEffect(() => {
@@ -21,7 +29,7 @@ export default function Market() {
       });
   }, []);
 
-  // ✅ Buscar ítems por nombre
+  // ✅ Búsqueda con debounce
   useEffect(() => {
     const delayDebounce = setTimeout(() => {
       if (searchTerm.trim() === '') {
@@ -41,122 +49,121 @@ export default function Market() {
     return () => clearTimeout(delayDebounce);
   }, [searchTerm, items]);
 
-  const handleClick = async (item) => {
+  // ✅ Cargar datos de mercado al seleccionar ítem
+  const handleClick = (item) => {
     setSelectedItem(item);
-    setLoadingData(true);
+    console.log('🟢 Item seleccionado:', item);
 
-    try {
-      const res = await fetch(
-        `https://www.albion-online-data.com/api/v2/stats/prices/${item.id}.json?locations=Bridgewatch,Martlock,Lymhurst,Thetford,Fortsterling,Caerleon`
+    const cityParams = CITIES.map((c) => `locations=${c}`).join('&');
+    const url = `https://west.albion-online-data.com/api/v2/stats/prices/${item.id}.json?${cityParams}`;
+
+    fetch(url)
+      .then((res) => res.json())
+      .then((data) => {
+        console.log('📊 Datos de mercado recibidos:', data);
+        setMarketData(data);
+      })
+      .catch((err) => {
+        console.error('❌ Error al cargar datos del mercado:', err);
+        setMarketData(null);
+      });
+  };
+
+  const renderTable = () => {
+    if (!marketData || !Array.isArray(marketData)) return null;
+
+    const rows = CITIES.map((city) => {
+      const ciudadData = marketData.find((e) => e.city === city) || {};
+      const venta = ciudadData.sell_price_min ?? 'No disponible';
+      const compra = ciudadData.buy_price_max ?? 'No disponible';
+
+      const margen =
+        typeof venta === 'number' && typeof compra === 'number'
+          ? venta - compra
+          : 'No disponible';
+
+      return (
+        <tr key={city} className="border-t border-gray-600">
+          <td className="p-2 font-semibold">{city}</td>
+          <td className="p-2 text-blue-400">
+            {venta !== 'No disponible' ? `${venta} ¤` : venta}
+          </td>
+          <td className="p-2 text-red-400">
+            {compra !== 'No disponible' ? `${compra} ¤` : compra}
+          </td>
+          <td className={`p-2 ${typeof margen === 'number' ? (margen >= 0 ? 'text-green-400' : 'text-red-500') : 'text-gray-400'}`}>
+            {typeof margen === 'number' ? `${margen} de ganancia` : margen}
+          </td>
+        </tr>
       );
-      const data = await res.json();
+    });
 
-      if (!Array.isArray(data)) throw new Error('❌ Formato inesperado de la API');
-
-      let minSell = null;
-      let maxBuy = null;
-
-      data.forEach((entry) => {
-        if (entry.sell_price_min > 0 && (!minSell || entry.sell_price_min < minSell.price)) {
-          minSell = { price: entry.sell_price_min, city: entry.city };
-        }
-        if (entry.buy_price_max > 0 && (!maxBuy || entry.buy_price_max > maxBuy.price)) {
-          maxBuy = { price: entry.buy_price_max, city: entry.city };
-        }
-      });
-
-      const margen = minSell && maxBuy ? maxBuy.price - minSell.price : 'No disponible';
-
-      setMarketData({
-        venta: minSell,
-        compra: maxBuy,
-        margen,
-        timestamp: data[0]?.sell_price_min_date || 'Desconocido',
-      });
-    } catch (error) {
-      console.error('❌ Error al obtener datos de mercado:', error);
-      setMarketData(null);
-    } finally {
-      setLoadingData(false);
-    }
+    return (
+      <div className="mt-6">
+        <h2 className="text-xl font-semibold mb-2">📦 Datos de Mercado: {selectedItem.nombre}</h2>
+        <table className="w-full text-left text-sm bg-gray-800 rounded-lg overflow-hidden">
+          <thead className="bg-gray-700 text-white">
+            <tr>
+              <th className="p-2">Ciudad</th>
+              <th className="p-2">Venta más barata</th>
+              <th className="p-2">Compra más cara</th>
+              <th className="p-2">Margen</th>
+            </tr>
+          </thead>
+          <tbody className="bg-gray-900 text-white">{rows}</tbody>
+        </table>
+        <p className="text-xs mt-2 text-gray-400">
+          ⏱ Última actualización: {new Date().toLocaleString()}
+        </p>
+      </div>
+    );
   };
 
   return (
-    <div className="p-4 text-white bg-black min-h-screen">
-      <h1 className="text-2xl font-bold mb-4 text-center">🔍 Buscar Ítem (desde items.json)</h1>
+    <div className="flex flex-col md:flex-row p-4 gap-6">
+      {/* Panel izquierdo: búsqueda */}
+      <div className="md:w-1/3">
+        <h1 className="text-2xl font-bold mb-4">🔍 Buscar Ítem</h1>
+        <input
+          type="text"
+          placeholder="Buscar ítem (ej: espada, capa, montura...)"
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="w-full p-2 border rounded-md mb-4 text-black"
+        />
 
-      <input
-        type="text"
-        placeholder="Buscar ítem (ej: espada, capa, montura...)"
-        value={searchTerm}
-        onChange={(e) => setSearchTerm(e.target.value)}
-        className="w-full p-2 border rounded-md mb-4 text-black"
-      />
+        {filteredItems.length === 0 && searchTerm !== '' && (
+          <p className="text-gray-400">Sin resultados para: "{searchTerm}"</p>
+        )}
 
-      {filteredItems.length === 0 && searchTerm !== '' && (
-        <p className="text-gray-400">Sin resultados para: "{searchTerm}"</p>
-      )}
-
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-        {filteredItems.map((item) => {
-          const imagen = item.imagen || `https://render.albiononline.com/v1/item/${item.id}.png`;
-
-          return (
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-2 gap-4">
+          {filteredItems.map((item) => (
             <div
               key={item.id}
               onClick={() => handleClick(item)}
               className="bg-gray-800 rounded-xl p-2 flex flex-col items-center cursor-pointer hover:bg-gray-700 transition"
             >
               <img
-                src={imagen}
+                src={item.imagen}
                 alt={item.nombre}
                 className="w-16 h-16 mb-2"
                 onError={(e) => {
                   e.target.src = '/no-img.png';
                 }}
               />
-              <p className="text-sm text-center">{item.nombre}</p>
+              <p className="text-xs text-center">{item.nombre}</p>
             </div>
-          );
-        })}
+          ))}
+        </div>
       </div>
 
-      {selectedItem && (
-        <div className="mt-10 bg-gray-900 p-4 rounded-lg shadow-xl">
-          <h2 className="text-xl font-semibold mb-2">📦 Datos de Mercado: {selectedItem.nombre}</h2>
-
-          {loadingData ? (
-            <p className="text-yellow-400">Cargando datos de mercado...</p>
-          ) : marketData ? (
-            <>
-              <p>
-                📉 <strong>Venta más barata:</strong>{' '}
-                {marketData.venta
-                  ? `${marketData.venta.price} en ${marketData.venta.city}`
-                  : 'No disponible'}
-              </p>
-              <p>
-                📈 <strong>Compra más cara:</strong>{' '}
-                {marketData.compra
-                  ? `${marketData.compra.price} en ${marketData.compra.city}`
-                  : 'No disponible'}
-              </p>
-              <p>
-                💸 <strong>Margen:</strong>{' '}
-                {typeof marketData.margen === 'number'
-                  ? `${marketData.margen} de ganancia`
-                  : marketData.margen}
-              </p>
-              <p>
-                ⏱️ <strong>Última actualización:</strong>{' '}
-                {new Date(marketData.timestamp).toLocaleString('es-CO')}
-              </p>
-            </>
-          ) : (
-            <p className="text-red-400">No se pudo obtener información del mercado.</p>
-          )}
-        </div>
-      )}
+      {/* Panel derecho: resultados */}
+      <div className="md:w-2/3">
+        {selectedItem && renderTable()}
+        {!selectedItem && (
+          <p className="text-gray-500">Selecciona un ítem para ver su información de mercado.</p>
+        )}
+      </div>
     </div>
   );
       }

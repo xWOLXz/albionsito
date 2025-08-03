@@ -9,7 +9,7 @@ export default function MarketPage() {
   const [cargando, setCargando] = useState(false);
 
   useEffect(() => {
-    // Precarga los nombres e IDs de todos los ítems una sola vez
+    // Precargar todos los ítems una vez
     const cargarItems = async () => {
       try {
         const res = await fetch('https://albionsito-backend.onrender.com/api/items');
@@ -31,7 +31,7 @@ export default function MarketPage() {
         .filter(item =>
           item.nombre.toLowerCase().includes(texto.toLowerCase())
         )
-        .slice(0, 20); // Limita a 20 resultados para no saturar
+        .slice(0, 20); // Limitar para no saturar la lista
       setResultados(encontrados);
     }
   };
@@ -42,20 +42,14 @@ export default function MarketPage() {
     setBusqueda('');
     setCargando(true);
     try {
-  const encodedId = encodeURIComponent(item.item_id);
-  const res = await fetch(`https://albionsito-backend.onrender.com/api/precios?itemId=${encodedId}`);
-  
-  if (!res.ok) {
-    throw new Error(`Error ${res.status}`);
-  }
-
-  const data = await res.json();
-  setPrecios(data);
-    } catch (err) {
-  console.error('Error al cargar precios:', err.message);
-  setPrecios(null); // para que muestre "No se pudo cargar el precio"
+      const encodedId = encodeURIComponent(item.item_id);
+      const res = await fetch(`https://albionsito-backend.onrender.com/api/precios?itemId=${encodedId}`);
+      if (!res.ok) throw new Error(`Error ${res.status}`);
+      const data = await res.json();
+      setPrecios(data);
     } catch (error) {
       console.error('Error al cargar precios:', error.message);
+      setPrecios(null);
     } finally {
       setCargando(false);
     }
@@ -98,7 +92,13 @@ export default function MarketPage() {
                   alignItems: 'center'
                 }}
               >
-                <img src={item.imagen} alt={item.nombre} width={40} height={40} style={{ marginRight: 10 }} />
+                <img
+                  src={item.imagen}
+                  alt={item.nombre}
+                  width={40}
+                  height={40}
+                  style={{ marginRight: 10 }}
+                />
                 <span>{item.nombre}</span>
               </li>
             ))}
@@ -127,4 +127,4 @@ export default function MarketPage() {
       )}
     </div>
   );
-}
+                    }

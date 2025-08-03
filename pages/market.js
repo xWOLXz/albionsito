@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import itemsData from '../utils/items.json';
 
 export default function Market() {
@@ -17,11 +17,12 @@ export default function Market() {
     }
 
     const results = itemsData.filter((item) =>
-      item.name.toLowerCase().includes(value)
+      item?.name?.toLowerCase().includes(value)
     );
 
-    setFilteredItems(results.slice(0, 20)); // máximo 20 resultados
-    console.log('🔍 Resultados filtrados:', results.slice(0, 20));
+    setFilteredItems(results.slice(0, 20));
+    console.log('🔍 Buscando:', value);
+    console.log('🔎 Resultados encontrados:', results.length);
   };
 
   const handleSelectItem = async (item) => {

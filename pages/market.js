@@ -4,6 +4,9 @@ export default function Market() {
   const [items, setItems] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [filteredItems, setFilteredItems] = useState([]);
+  const [selectedItem, setSelectedItem] = useState(null);
+  const [marketData, setMarketData] = useState(null);
+  const [loadingData, setLoadingData] = useState(false);
 
   // ✅ Cargar items.json desde /public
   useEffect(() => {
@@ -33,19 +36,65 @@ export default function Market() {
       console.log('🔎 Buscando:', searchTerm);
       console.log('📦 Resultados encontrados:', resultados.length);
       setFilteredItems(resultados);
-    }, 300); // ⏱ Espera 300ms
+    }, 300);
 
     return () => clearTimeout(delayDebounce);
   }, [searchTerm, items]);
 
-  const handleClick = (item) => {
-    console.log('🟢 Item seleccionado:', item);
-    alert(`ID del item: ${item.id}`);
+  const handleClick = async (item) => {
+    console.log('🟢 Ítem seleccionado:', item);
+    setSelectedItem(item);
+    setLoadingData(true);
+
+    try {
+      const res = await fetch(
+        `https://www.albion-online-data.com/api/v2/stats/prices/${item.id}.json?locations=Bridgewatch,Martlock,Lymhurst,Thetford,Fortsterling,Caerleon`
+      );
+      const data = await res.json();
+
+      if (!Array.isArray(data)) {
+        throw new Error('❌ Formato inesperado de la API');
+      }
+
+      let minSell = null;
+      let maxBuy = null;
+
+      data.forEach((entry) => {
+        if (entry.sell_price_min > 0) {
+          if (!minSell || entry.sell_price_min < minSell.price) {
+            minSell = { price: entry.sell_price_min, city: entry.city };
+          }
+        }
+        if (entry.buy_price_max > 0) {
+          if (!maxBuy || entry.buy_price_max > maxBuy.price) {
+            maxBuy = { price: entry.buy_price_max, city: entry.city };
+          }
+        }
+      });
+
+      const margen =
+        minSell && maxBuy ? maxBuy.price - minSell.price : 'No disponible';
+
+      const resultado = {
+        venta: minSell,
+        compra: maxBuy,
+        margen,
+        timestamp: data[0]?.sell_price_min_date || 'Desconocido',
+      };
+
+      console.log('📊 Datos de mercado:', resultado);
+      setMarketData(resultado);
+    } catch (error) {
+      console.error('❌ Error al obtener datos de mercado:', error);
+      setMarketData(null);
+    } finally {
+      setLoadingData(false);
+    }
   };
 
   return (
-    <div className="p-4">
-      <h1 className="text-2xl font-bold mb-4">🔍 Buscar Ítem (desde items.json)</h1>
+    <div className="p-4 text-white bg-black min-h-screen">
+      <h1 className="text-2xl font-bold mb-4 text-center">🔍 Buscar Ítem (desde items.json)</h1>
 
       <input
         type="text"
@@ -78,6 +127,36 @@ export default function Market() {
           </div>
         ))}
       </div>
+
+      {selectedItem && (
+        <div className="mt-10 bg-gray-900 p-4 rounded-lg">
+          <h2 className="text-xl font-semibold mb-2">📦 Información de mercado: {selectedItem.nombre}</h2>
+
+          {loadingData ? (
+            <p className="text-yellow-400">Cargando datos de mercado...</p>
+          ) : marketData ? (
+            <>
+              <p>
+                📉 <strong>Venta más barata:</strong>{' '}
+                {marketData.venta ? `${marketData.venta.price} en ${marketData.venta.city}` : 'No disponible'}
+              </p>
+              <p>
+                📈 <strong>Compra más cara:</strong>{' '}
+                {marketData.compra ? `${marketData.compra.price} en ${marketData.compra.city}` : 'No disponible'}
+              </p>
+              <p>
+                💸 <strong>Margen:</strong>{' '}
+                {typeof marketData.margen === 'number' ? `${marketData.margen} de ganancia` : marketData.margen}
+              </p>
+              <p>
+                ⏱️ <strong>Última actualización:</strong> {new Date(marketData.timestamp).toLocaleString('es-CO')}
+              </p>
+            </>
+          ) : (
+            <p className="text-red-400">No se pudo obtener información del mercado.</p>
+          )}
+        </div>
+      )}
     </div>
   );
-}
+                }

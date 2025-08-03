@@ -1,20 +1,22 @@
 import { useEffect, useState } from 'react';
 
-const CITIES = [
-  'Bridgewatch',
-  'Martlock',
-  'Thetford',
-  'Fort Sterling',
-  'Lymhurst',
-  'Brecilien',
-];
-
 export default function Market() {
   const [items, setItems] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [filteredItems, setFilteredItems] = useState([]);
   const [selectedItem, setSelectedItem] = useState(null);
   const [marketData, setMarketData] = useState(null);
+  const [loadingData, setLoadingData] = useState(false);
+
+  const CITIES = [
+    'Bridgewatch',
+    'Martlock',
+    'Lymhurst',
+    'Fort Sterling',
+    'Thetford',
+    'Caerleon',
+    'Brecilien',
+  ];
 
   // ✅ Cargar items.json desde /public
   useEffect(() => {
@@ -29,7 +31,7 @@ export default function Market() {
       });
   }, []);
 
-  // ✅ Búsqueda con debounce
+  // ✅ Filtrar items por búsqueda
   useEffect(() => {
     const delayDebounce = setTimeout(() => {
       if (searchTerm.trim() === '') {
@@ -41,7 +43,7 @@ export default function Market() {
         item.nombre.toLowerCase().includes(searchTerm.toLowerCase())
       );
 
-      console.log('🔎 Buscando:', searchTerm);
+      console.log('🔍 Buscando:', searchTerm);
       console.log('📦 Resultados encontrados:', resultados.length);
       setFilteredItems(resultados);
     }, 300);
@@ -49,94 +51,59 @@ export default function Market() {
     return () => clearTimeout(delayDebounce);
   }, [searchTerm, items]);
 
-  // ✅ Cargar datos de mercado al seleccionar ítem
+  // ✅ Al seleccionar un item
   const handleClick = (item) => {
-    setSelectedItem(item);
     console.log('🟢 Item seleccionado:', item);
-
-    const cityParams = CITIES.map((c) => `locations=${c}`).join('&');
-    const url = `https://west.albion-online-data.com/api/v2/stats/prices/${item.id}.json?${cityParams}`;
-
-    fetch(url)
-      .then((res) => res.json())
-      .then((data) => {
-        console.log('📊 Datos de mercado recibidos:', data);
-        setMarketData(data);
-      })
-      .catch((err) => {
-        console.error('❌ Error al cargar datos del mercado:', err);
-        setMarketData(null);
-      });
+    setSelectedItem(item);
+    setMarketData(null);
+    fetchMarketData(item.id);
   };
 
-  const renderTable = () => {
-    if (!marketData || !Array.isArray(marketData)) return null;
-
-    const rows = CITIES.map((city) => {
-      const ciudadData = marketData.find((e) => e.city === city) || {};
-      const venta = ciudadData.sell_price_min ?? 'No disponible';
-      const compra = ciudadData.buy_price_max ?? 'No disponible';
-
-      const margen =
-        typeof venta === 'number' && typeof compra === 'number'
-          ? venta - compra
-          : 'No disponible';
-
-      return (
-        <tr key={city} className="border-t border-gray-600">
-          <td className="p-2 font-semibold">{city}</td>
-          <td className="p-2 text-blue-400">
-            {venta !== 'No disponible' ? `${venta} ¤` : venta}
-          </td>
-          <td className="p-2 text-red-400">
-            {compra !== 'No disponible' ? `${compra} ¤` : compra}
-          </td>
-          <td className={`p-2 ${typeof margen === 'number' ? (margen >= 0 ? 'text-green-400' : 'text-red-500') : 'text-gray-400'}`}>
-            {typeof margen === 'number' ? `${margen} de ganancia` : margen}
-          </td>
-        </tr>
+  // ✅ Cargar datos del market por ID
+  const fetchMarketData = async (itemId) => {
+    setLoadingData(true);
+    try {
+      const cityParams = CITIES.map((city) => `locations=${city}`).join('&');
+      const response = await fetch(
+        `https://west.albion-online-data.com/api/v2/stats/prices/${itemId}.json?${cityParams}&qualities=1`
       );
-    });
+      const data = await response.json();
+      console.log('📊 Datos de mercado recibidos:', data);
+      setMarketData(data);
+    } catch (error) {
+      console.error('❌ Error al obtener datos del market:', error);
+      setMarketData([]);
+    } finally {
+      setLoadingData(false);
+    }
+  };
 
-    return (
-      <div className="mt-6">
-        <h2 className="text-xl font-semibold mb-2">📦 Datos de Mercado: {selectedItem.nombre}</h2>
-        <table className="w-full text-left text-sm bg-gray-800 rounded-lg overflow-hidden">
-          <thead className="bg-gray-700 text-white">
-            <tr>
-              <th className="p-2">Ciudad</th>
-              <th className="p-2">Venta más barata</th>
-              <th className="p-2">Compra más cara</th>
-              <th className="p-2">Margen</th>
-            </tr>
-          </thead>
-          <tbody className="bg-gray-900 text-white">{rows}</tbody>
-        </table>
-        <p className="text-xs mt-2 text-gray-400">
-          ⏱ Última actualización: {new Date().toLocaleString()}
-        </p>
-      </div>
-    );
+  // ✅ Obtener datos organizados por ciudad
+  const getDataByCity = () => {
+    if (!marketData || !Array.isArray(marketData)) return [];
+    return CITIES.map((city) => {
+      const entry = marketData.find((e) => e.city === city);
+      return {
+        city,
+        sellPrice: entry?.sell_price_min || null,
+        buyPrice: entry?.buy_price_max || null,
+      };
+    });
   };
 
   return (
-    <div className="flex flex-col md:flex-row p-4 gap-6">
-      {/* Panel izquierdo: búsqueda */}
-      <div className="md:w-1/3">
-        <h1 className="text-2xl font-bold mb-4">🔍 Buscar Ítem</h1>
+    <div className="flex flex-col md:flex-row h-full min-h-screen p-4 bg-black text-white">
+      {/* Panel izquierdo: Buscador */}
+      <div className="md:w-1/3 p-2">
+        <h1 className="text-xl font-bold mb-2">🔍 Buscar Ítem</h1>
         <input
           type="text"
-          placeholder="Buscar ítem (ej: espada, capa, montura...)"
+          placeholder="Ej: espada, capa, montura..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full p-2 border rounded-md mb-4 text-black"
+          className="w-full p-2 border border-gray-600 bg-white text-black rounded mb-4"
         />
-
-        {filteredItems.length === 0 && searchTerm !== '' && (
-          <p className="text-gray-400">Sin resultados para: "{searchTerm}"</p>
-        )}
-
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 overflow-y-auto max-h-[70vh] pr-2">
           {filteredItems.map((item) => (
             <div
               key={item.id}
@@ -146,7 +113,7 @@ export default function Market() {
               <img
                 src={item.imagen}
                 alt={item.nombre}
-                className="w-16 h-16 mb-2"
+                className="w-12 h-12 mb-1"
                 onError={(e) => {
                   e.target.src = '/no-img.png';
                 }}
@@ -157,13 +124,40 @@ export default function Market() {
         </div>
       </div>
 
-      {/* Panel derecho: resultados */}
-      <div className="md:w-2/3">
-        {selectedItem && renderTable()}
-        {!selectedItem && (
-          <p className="text-gray-500">Selecciona un ítem para ver su información de mercado.</p>
+      {/* Panel derecho: Resultados */}
+      <div className="md:w-2/3 p-4">
+        {selectedItem ? (
+          <>
+            <h2 className="text-xl font-semibold mb-4">
+              📦 Datos de Mercado: {selectedItem.nombre}
+            </h2>
+
+            {loadingData && <p>⏳ Cargando datos del mercado...</p>}
+
+            {!loadingData && (
+              <div className="space-y-2">
+                {getDataByCity().map((data, index) => (
+                  <div key={index} className="border-b border-gray-600 pb-2 mb-2">
+                    <h3 className="text-lg font-medium text-yellow-400">{data.city}</h3>
+                    <p>🛒 Venta más barata: {data.sellPrice ? `${data.sellPrice} ᛃ` : 'No disponible'}</p>
+                    <p>🛍️ Compra más cara: {data.buyPrice ? `${data.buyPrice} ᛃ` : 'No disponible'}</p>
+                    {data.sellPrice && data.buyPrice && (
+                      <p className="text-green-400">
+                        📈 Margen: {data.buyPrice - data.sellPrice} ᛃ
+                      </p>
+                    )}
+                  </div>
+                ))}
+                <p className="text-sm text-gray-400 italic">
+                  ⏱ Última actualización: {new Date().toLocaleString()}
+                </p>
+              </div>
+            )}
+          </>
+        ) : (
+          <p className="text-gray-500">Selecciona un ítem para ver sus precios en el mercado.</p>
         )}
       </div>
     </div>
   );
-      }
+                  }

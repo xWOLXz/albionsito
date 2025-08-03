@@ -1,95 +1,127 @@
-// pages/market.js
 import { useState, useEffect } from 'react';
+import Image from 'next/image';
 
 export default function Market() {
   const [allItems, setAllItems] = useState([]);
   const [search, setSearch] = useState('');
   const [filtered, setFiltered] = useState([]);
+  const [selectedItem, setSelectedItem] = useState(null);
+  const [precios, setPrecios] = useState(null);
   const [loading, setLoading] = useState(false);
 
-  // Cargar ítems desde el backend (una sola vez)
+  // ✅ Al cargar la página, traer todos los ítems (una sola vez)
   useEffect(() => {
-    const fetchItems = async () => {
-      setLoading(true);
+    const fetchAllItems = async () => {
       try {
-        const res = await fetch('https://albionsito-backend.onrender.com/api/items/all');
+        const res = await fetch('https://albionsito-backend.onrender.com/items/all');
         const data = await res.json();
         setAllItems(data);
       } catch (err) {
-        console.error('❌ Error cargando ítems:', err);
+        console.error('Error cargando ítems:', err.message);
       }
-      setLoading(false);
     };
-    fetchItems();
+    fetchAllItems();
   }, []);
 
-  // Filtro con debounce
+  // 🔍 Filtrar en tiempo real mientras el usuario escribe
   useEffect(() => {
-    const delay = setTimeout(() => {
-      const resultado = allItems.filter(i =>
-        i.nombre.toLowerCase().includes(search.toLowerCase())
-      );
-      setFiltered(resultado.slice(0, 100)); // Limita a 100 resultados
-    }, 300); // espera 300ms antes de filtrar
-    return () => clearTimeout(delay);
+    if (search.length === 0) {
+      setFiltered([]);
+      setSelectedItem(null);
+      setPrecios(null);
+      return;
+    }
+
+    const results = allItems.filter(item =>
+      item.nombre.toLowerCase().includes(search.toLowerCase())
+    );
+    setFiltered(results.slice(0, 20)); // máximo 20 sugerencias
   }, [search, allItems]);
 
-  return (
-    <div style={{ padding: '1rem', color: '#fff', fontFamily: 'sans-serif' }}>
-      <h1 style={{ fontSize: '2rem', textAlign: 'center' }}>Market General</h1>
+  // 📦 Obtener precios de un ítem
+  const fetchPrecios = async (itemId) => {
+    try {
+      setLoading(true);
+      const res = await fetch(`https://albionsito-backend.onrender.com/precios?itemId=${itemId}`);
+      const data = await res.json();
+      setPrecios(data);
+      setLoading(false);
+    } catch (err) {
+      console.error('Error obteniendo precios:', err.message);
+      setPrecios(null);
+      setLoading(false);
+    }
+  };
 
-      <div style={{ display: 'flex', justifyContent: 'center', margin: '1rem' }}>
+  // 👉 Cuando seleccionan un ítem
+  const handleSelectItem = (item) => {
+    setSelectedItem(item);
+    setSearch(item.nombre);
+    setFiltered([]);
+    fetchPrecios(item.item_id);
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-900 text-white p-4">
+      <h1 className="text-2xl font-bold mb-4 text-center">Mercado de Albion Online</h1>
+
+      <div className="max-w-xl mx-auto relative">
         <input
+          className="w-full p-3 rounded text-black"
           type="text"
-          placeholder="Buscar ítem..."
+          placeholder="Buscar ítem por nombre..."
           value={search}
-          onChange={e => setSearch(e.target.value)}
-          style={{
-            padding: '0.5rem',
-            borderRadius: '8px',
-            border: '1px solid #ccc',
-            width: '100%',
-            maxWidth: '400px'
-          }}
+          onChange={(e) => setSearch(e.target.value)}
         />
+
+        {filtered.length > 0 && (
+          <ul className="absolute z-10 bg-white text-black w-full max-h-60 overflow-y-auto border border-gray-300 mt-1 rounded shadow-lg">
+            {filtered.map((item, idx) => (
+              <li
+                key={idx}
+                className="p-2 hover:bg-gray-200 cursor-pointer text-sm"
+                onClick={() => handleSelectItem(item)}
+              >
+                {item.nombre}
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
 
-      {loading && <p style={{ textAlign: 'center' }}>Cargando ítems...</p>}
-
-      {!loading && filtered.length === 0 && search.length > 0 && (
-        <p style={{ textAlign: 'center' }}>No se encontraron ítems.</p>
+      {loading && (
+        <div className="text-center mt-6 text-yellow-300">🔄 Cargando precios...</div>
       )}
 
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-        gap: '1rem',
-        padding: '1rem'
-      }}>
-        {filtered.map(item => (
-          <a
-            key={item.item_id}
-            href={`/market/${item.item_id}`}
-            style={{
-              background: '#1a1a1a',
-              padding: '0.5rem',
-              borderRadius: '12px',
-              textDecoration: 'none',
-              color: 'white',
-              textAlign: 'center',
-              transition: 'all 0.2s ease-in-out'
-            }}
-          >
-            <img
-              src={`https://render.albiononline.com/v1/item/${item.item_id}.png`}
-              alt={item.nombre}
-              style={{ width: '64px', height: '64px', marginBottom: '0.5rem' }}
-              onError={(e) => e.target.style.display = 'none'}
+      {selectedItem && precios && (
+        <div className="mt-6 max-w-xl mx-auto bg-gray-800 rounded p-4 shadow">
+          <div className="flex items-center space-x-4">
+            <Image
+              src={`https://render.albiononline.com/v1/item/${selectedItem.item_id}.png`}
+              alt={selectedItem.nombre}
+              width={64}
+              height={64}
+              className="rounded"
             />
-            <div style={{ fontSize: '0.95rem' }}>{item.nombre}</div>
-          </a>
-        ))}
-      </div>
+            <h2 className="text-xl font-semibold">{selectedItem.nombre}</h2>
+          </div>
+
+          <div className="mt-4 space-y-2 text-sm">
+            <p>
+              <strong>📦 Venta más barata:</strong>{' '}
+              {precios.sell.price > 0 ? `${precios.sell.price.toLocaleString()} en ${precios.sell.city}` : 'No disponible'}
+            </p>
+            <p>
+              <strong>🛒 Compra más cara:</strong>{' '}
+              {precios.buy.price > 0 ? `${precios.buy.price.toLocaleString()} en ${precios.buy.city}` : 'No disponible'}
+            </p>
+            <p>
+              <strong>💰 Margen de ganancia:</strong>{' '}
+              {precios.margen ? `${precios.margen.toLocaleString()} de plata` : 'No disponible'}
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,113 +1,104 @@
-// /pages/market.js
-import React, { useEffect, useState } from 'react';
-import Image from 'next/image';
+import { useEffect, useState } from 'react';
+import Head from 'next/head';
 
-export default function MarketPage() {
+export default function Market() {
   const [allItems, setAllItems] = useState([]);
-  const [search, setSearch] = useState('');
   const [filteredItems, setFilteredItems] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [selectedItem, setSelectedItem] = useState(null);
-  const [prices, setPrices] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
 
-  // Cargar todos los items paginados una sola vez al iniciar
+  // Cargar todos los ítems desde el backend
   useEffect(() => {
-    let cancel = false;
     const fetchAllItems = async () => {
       let page = 1;
-      let items = [];
-      while (!cancel) {
-        const res = await fetch(`https://albionsito-backend.onrender.com/items?page=${page}`);
-        const data = await res.json();
-        if (!data.length) break;
-        items = [...items, ...data];
-        page++;
+      let allResults = [];
+      let keepGoing = true;
+
+      while (keepGoing) {
+        try {
+          const res = await fetch(`https://albionsito-backend.onrender.com/items?page=${page}`);
+          const data = await res.json();
+
+          if (data.length === 0) {
+            keepGoing = false;
+          } else {
+            allResults = allResults.concat(data);
+            page++;
+          }
+        } catch (err) {
+          console.error('Error al cargar ítems:', err);
+          keepGoing = false;
+        }
       }
-      if (!cancel) {
-        setAllItems(items);
-        setLoading(false);
-      }
+
+      setAllItems(allResults);
+      setFilteredItems(allResults);
+      setLoading(false);
     };
+
     fetchAllItems();
-    return () => {
-      cancel = true;
-    };
   }, []);
 
-  // Buscar items en memoria (todos los cargados)
-  useEffect(() => {
-    const query = search.toLowerCase();
-    const filtered = allItems.filter(item =>
-      item.LocalizedNames?.['ES-ES']?.toLowerCase().includes(query)
-    );
-    setFilteredItems(filtered);
-  }, [search, allItems]);
+  // Filtrar ítems en tiempo real por nombre
+  const handleSearch = (e) => {
+    const term = e.target.value.toLowerCase();
+    setSearchTerm(term);
 
-  // Obtener precios del item seleccionado
-  useEffect(() => {
-    if (!selectedItem) return;
-    const fetchPrices = async () => {
-      const res = await fetch(`https://albionsito-backend.onrender.com/precios?itemId=${selectedItem.UniqueName}`);
-      const data = await res.json();
-      setPrices(data);
-    };
-    fetchPrices();
-  }, [selectedItem]);
+    if (term === '') {
+      setFilteredItems(allItems);
+    } else {
+      const results = allItems.filter((item) =>
+        item.localized_name.toLowerCase().includes(term)
+      );
+      setFilteredItems(results);
+    }
+  };
 
   return (
-    <div className="p-4 text-white">
-      <h1 className="text-2xl font-bold mb-4 text-center">📦 Mercado de Albion</h1>
+    <>
+      <Head>
+        <title>Market General | Albionsito</title>
+      </Head>
 
-      {/* Buscador */}
-      <input
-        type="text"
-        placeholder="Buscar ítem por nombre..."
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-        className="w-full p-2 mb-4 rounded text-black"
-      />
+      <div className="min-h-screen bg-black text-white p-4">
+        <h1 className="text-3xl font-bold mb-4 text-center">🛒 Market General</h1>
 
-      {/* Cargando */}
-      {loading && <p className="text-center">⏳ Cargando todos los ítems...</p>}
+        {loading ? (
+          <div className="flex flex-col items-center justify-center mt-20">
+            <img src="/albion-loader.gif" alt="Cargando..." className="w-24 h-24 mb-4" />
+            <p className="text-lg">Cargando todos los ítems del mercado...</p>
+          </div>
+        ) : (
+          <>
+            <div className="flex justify-center mb-6">
+              <input
+                type="text"
+                placeholder="🔍 Buscar ítem por nombre..."
+                value={searchTerm}
+                onChange={handleSearch}
+                className="px-4 py-2 rounded-md w-full max-w-xl text-black"
+              />
+            </div>
 
-      {/* Resultados */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-4">
-        {filteredItems.map(item => (
-          <button
-            key={item.UniqueName}
-            className="bg-zinc-800 hover:bg-zinc-700 p-2 rounded flex flex-col items-center"
-            onClick={() => setSelectedItem(item)}
-          >
-            <Image
-              src={`https://render.albiononline.com/v1/item/${item.UniqueName}.png`}
-              alt={item.LocalizedNames?.['ES-ES'] || item.UniqueName}
-              width={64}
-              height={64}
-            />
-            <span className="text-xs text-center mt-1">
-              {item.LocalizedNames?.['ES-ES'] || item.UniqueName}
-            </span>
-          </button>
-        ))}
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+              {filteredItems.map((item) => (
+                <div
+                  key={item.unique_name}
+                  className="bg-gray-800 rounded-lg p-3 flex flex-col items-center text-center"
+                >
+                  <img
+                    src={`https://render.albiononline.com/v1/item/${item.unique_name}.png`}
+                    alt={item.localized_name}
+                    className="w-14 h-14 mb-2"
+                    onError={(e) => (e.target.style.display = 'none')}
+                  />
+                  <span className="text-sm">{item.localized_name}</span>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
       </div>
-
-      {/* Detalles del ítem seleccionado */}
-      {selectedItem && prices && (
-        <div className="mt-8 p-4 border rounded bg-zinc-800">
-          <h2 className="text-lg font-semibold mb-2">
-            Detalles de: {selectedItem.LocalizedNames?.['ES-ES'] || selectedItem.UniqueName}
-          </h2>
-          <p>📉 Precio más bajo: {prices.sell_price_min} (en {prices.sell_city})</p>
-          <p>📈 Precio más alto de compra: {prices.buy_price_max} (en {prices.buy_city})</p>
-          <p>💰 Margen de ganancia: {prices.profit}</p>
-          <button
-            className="mt-2 px-4 py-1 bg-red-600 text-white rounded"
-            onClick={() => setSelectedItem(null)}
-          >
-            Cerrar detalles
-          </button>
-        </div>
-      )}
-    </div>
+    </>
   );
-              }
+          }

@@ -1,147 +1,106 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import itemsData from '../utils/items.json';
-import Image from 'next/image';
 
 export default function Market() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filteredItems, setFilteredItems] = useState([]);
   const [selectedItem, setSelectedItem] = useState(null);
-  const [marketData, setMarketData] = useState(null);
-  const [loading, setLoading] = useState(false);
-
-  const cities = ['Caerleon', 'Martlock', 'Bridgewatch', 'Thetford', 'Fort Sterling', 'Lymhurst'];
+  const [itemPrices, setItemPrices] = useState(null);
 
   const handleSearch = (e) => {
-    const term = e.target.value;
-    setSearchTerm(term);
-    console.log('🔍 Buscando:', term);
+    const value = e.target.value.toLowerCase();
+    setSearchTerm(value);
 
-    if (term.length > 2) {
-      const results = itemsData.filter(
-        (item) =>
-          item?.LocalizedNames?.['ES-ES'] &&
-          item.LocalizedNames['ES-ES'].toLowerCase().includes(term.toLowerCase())
-      );
-      console.log('🎯 Resultados encontrados:', results.length);
-      setFilteredItems(results.slice(0, 10));
-    } else {
+    if (value.length === 0) {
       setFilteredItems([]);
+      return;
     }
+
+    const results = itemsData.filter((item) =>
+      item.name.toLowerCase().includes(value)
+    );
+
+    setFilteredItems(results.slice(0, 20)); // máximo 20 resultados
+    console.log('🔍 Resultados filtrados:', results.slice(0, 20));
   };
 
-  const fetchMarketData = async (itemId) => {
-    try {
-      setLoading(true);
-      const locations = cities.join(',');
-      const url = `https://west.albion-online-data.com/api/v2/stats/prices/${itemId}.json?locations=${locations}&qualities=1`;
-      console.log('🌐 Consultando API:', url);
-      const response = await fetch(url);
-      const data = await response.json();
-      console.log('📦 Respuesta de la API:', data);
-      setMarketData(data);
-    } catch (error) {
-      console.error('❌ Error consultando la API:', error);
-      setMarketData(null);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleItemClick = (item) => {
-    console.log('✅ Ítem seleccionado:', item);
+  const handleSelectItem = async (item) => {
     setSelectedItem(item);
+    setSearchTerm(item.name);
     setFilteredItems([]);
-    setSearchTerm(item.LocalizedNames['ES-ES']);
-    fetchMarketData(item.UniqueName);
-  };
+    console.log('✅ Ítem seleccionado:', item);
 
-  const getLowestSell = () => {
-    if (!marketData) return null;
-    return marketData.reduce((min, item) => {
-      return item.sell_price_min > 0 && item.sell_price_min < min.sell_price_min ? item : min;
-    }, { sell_price_min: Infinity });
+    try {
+      const response = await fetch(
+        `https://west.albion-online-data.com/api/v2/stats/prices/${item.id}.json?locations=Bridgewatch,Martlock,Thetford,Lymhurst,FortSterling,Caerleon`
+      );
+      const data = await response.json();
+      console.log('💰 Datos de precios:', data);
+      setItemPrices(data);
+    } catch (error) {
+      console.error('❌ Error al obtener precios:', error);
+      setItemPrices(null);
+    }
   };
-
-  const getHighestBuy = () => {
-    if (!marketData) return null;
-    return marketData.reduce((max, item) => {
-      return item.buy_price_max > max.buy_price_max ? item : max;
-    }, { buy_price_max: 0 });
-  };
-
-  const lowestSell = getLowestSell();
-  const highestBuy = getHighestBuy();
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white p-4">
-      <h1 className="text-3xl font-bold mb-4 text-center">📦 Mercado General - Albion</h1>
+    <div className="p-4 max-w-xl mx-auto">
+      <h1 className="text-2xl font-bold mb-4 text-center">📦 Mercado de Albion</h1>
 
-      <div className="max-w-xl mx-auto relative">
-        <input
-          type="text"
-          value={searchTerm}
-          onChange={handleSearch}
-          placeholder="Buscar ítem..."
-          className="w-full px-4 py-2 rounded bg-gray-800 text-white"
-        />
-        {filteredItems.length > 0 && (
-          <ul className="absolute z-10 bg-gray-800 w-full mt-1 rounded shadow-lg max-h-64 overflow-y-auto">
-            {filteredItems.map((item) => (
-              <li
-                key={item.UniqueName}
-                className="flex items-center gap-2 px-4 py-2 hover:bg-gray-700 cursor-pointer"
-                onClick={() => handleItemClick(item)}
-              >
-                <img
-                  src={`https://render.albiononline.com/v1/item/${item.UniqueName}.png`}
-                  alt={item.LocalizedNames['ES-ES']}
-                  className="w-6 h-6"
-                />
-                {item.LocalizedNames['ES-ES']}
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
+      <input
+        type="text"
+        placeholder="Buscar ítem por nombre..."
+        className="w-full p-2 border rounded mb-4"
+        value={searchTerm}
+        onChange={handleSearch}
+      />
 
-      {loading && (
-        <div className="flex justify-center mt-8">
-          <Image src="/albion-loader.gif" alt="Cargando..." width={64} height={64} />
-        </div>
+      {filteredItems.length > 0 && (
+        <ul className="bg-white shadow rounded max-h-80 overflow-y-auto mb-4">
+          {filteredItems.map((item) => (
+            <li
+              key={item.id}
+              className="flex items-center gap-2 p-2 hover:bg-gray-100 cursor-pointer"
+              onClick={() => handleSelectItem(item)}
+            >
+              <img src={item.icon} alt={item.name} className="w-6 h-6" />
+              <span>{item.name}</span>
+            </li>
+          ))}
+        </ul>
       )}
 
-      {selectedItem && marketData && !loading && (
-        <div className="mt-8 bg-gray-800 p-4 rounded shadow max-w-3xl mx-auto">
-          <div className="flex items-center gap-4 mb-4">
-            <img
-              src={`https://render.albiononline.com/v1/item/${selectedItem.UniqueName}.png`}
-              alt={selectedItem.LocalizedNames['ES-ES']}
-              className="w-12 h-12"
-            />
-            <h2 className="text-xl font-semibold">{selectedItem.LocalizedNames['ES-ES']}</h2>
-          </div>
+      {selectedItem && (
+        <div className="bg-gray-100 p-4 rounded shadow">
+          <h2 className="text-xl font-bold mb-2">{selectedItem.name}</h2>
+          <img
+            src={selectedItem.icon}
+            alt={selectedItem.name}
+            className="w-12 h-12 mb-2"
+          />
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="bg-gray-700 p-4 rounded">
-              <h3 className="text-lg font-bold">💰 Precio más bajo (Venta)</h3>
-              <p>{lowestSell?.sell_price_min.toLocaleString()} <span className="text-sm text-gray-400">plata</span></p>
-              <p className="text-sm text-gray-400">📍 {lowestSell?.city}</p>
-            </div>
-            <div className="bg-gray-700 p-4 rounded">
-              <h3 className="text-lg font-bold">🪙 Precio más alto (Compra)</h3>
-              <p>{highestBuy?.buy_price_max.toLocaleString()} <span className="text-sm text-gray-400">plata</span></p>
-              <p className="text-sm text-gray-400">📍 {highestBuy?.city}</p>
-            </div>
-            <div className="bg-gray-700 p-4 rounded">
-              <h3 className="text-lg font-bold">📈 Ganancia Potencial</h3>
-              <p>
-                {highestBuy && lowestSell
-                  ? (highestBuy.buy_price_max - lowestSell.sell_price_min).toLocaleString()
-                  : '0'}{' '}
-                <span className="text-sm text-gray-400">plata</span>
-              </p>
-            </div>
-          </div>
+          {itemPrices ? (
+            <table className="w-full text-left text-sm">
+              <thead>
+                <tr>
+                  <th className="py-1">Ciudad</th>
+                  <th className="py-1">Compra máx</th>
+                  <th className="py-1">Venta mín</th>
+                </tr>
+              </thead>
+              <tbody>
+                {itemPrices.map((entry, i) => (
+                  <tr key={i} className="border-t">
+                    <td className="py-1">{entry.city}</td>
+                    <td className="py-1">{entry.buy_price_max?.toLocaleString() || '-'}</td>
+                    <td className="py-1">{entry.sell_price_min?.toLocaleString() || '-'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            <p className="text-red-500 mt-2">No se pudo obtener información de precios.</p>
+          )}
         </div>
       )}
     </div>

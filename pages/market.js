@@ -1,114 +1,142 @@
-// /pages/market.js
-
 import { useState, useEffect } from 'react';
-import itemsData from '../data/items.json';
+import itemsData from '../utils/items.json';
+import Image from 'next/image';
 
-export default function MarketPage() {
+export default function Market() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filteredItems, setFilteredItems] = useState([]);
   const [selectedItem, setSelectedItem] = useState(null);
-  const [itemPrices, setItemPrices] = useState(null);
+  const [marketData, setMarketData] = useState(null);
   const [loading, setLoading] = useState(false);
 
-  const handleSearch = (term) => {
+  const cities = ['Caerleon', 'Martlock', 'Bridgewatch', 'Thetford', 'Fort Sterling', 'Lymhurst'];
+
+  const handleSearch = (e) => {
+    const term = e.target.value.toLowerCase();
     setSearchTerm(term);
-    const filtered = itemsData.filter((item) =>
-      item.name.toLowerCase().includes(term.toLowerCase())
-    );
-    setFilteredItems(filtered.slice(0, 20)); // Máximo 20 resultados
+    if (term.length > 2) {
+      const results = itemsData.filter((item) =>
+        item.name.toLowerCase().includes(term)
+      );
+      setFilteredItems(results.slice(0, 10));
+    } else {
+      setFilteredItems([]);
+    }
   };
 
-  const handleItemClick = async (item) => {
-    setSelectedItem(item);
-    setLoading(true);
-    setItemPrices(null);
-    console.log('Consultando precios para:', item.id);
-
+  const fetchMarketData = async (itemId) => {
     try {
-      const response = await fetch(`https://west.albion-online-data.com/api/v2/stats/prices/${item.id}.json`);
+      setLoading(true);
+      const locations = cities.join(',');
+      const response = await fetch(
+        `https://west.albion-online-data.com/api/v2/stats/prices/${itemId}.json?locations=${locations}&qualities=1`
+      );
       const data = await response.json();
-      console.log('Datos recibidos de la API:', data);
-      setItemPrices(data);
+      setMarketData(data);
     } catch (error) {
-      console.error('Error al obtener precios:', error);
+      console.error('Error fetching market data:', error);
+      setMarketData(null);
     } finally {
       setLoading(false);
     }
   };
 
+  const handleItemClick = (item) => {
+    setSelectedItem(item);
+    setFilteredItems([]);
+    setSearchTerm(item.name);
+    fetchMarketData(item.id);
+  };
+
   const getLowestSell = () => {
-    if (!itemPrices) return null;
-    return itemPrices.reduce((acc, curr) => {
-      return curr.sell_price_min > 0 && (acc === null || curr.sell_price_min < acc.sell_price_min)
-        ? curr
-        : acc;
-    }, null);
+    if (!marketData) return null;
+    return marketData.reduce((min, item) => {
+      return item.sell_price_min > 0 && item.sell_price_min < min.sell_price_min ? item : min;
+    }, { sell_price_min: Infinity });
   };
 
   const getHighestBuy = () => {
-    if (!itemPrices) return null;
-    return itemPrices.reduce((acc, curr) => {
-      return curr.buy_price_max > 0 && (acc === null || curr.buy_price_max > acc.buy_price_max)
-        ? curr
-        : acc;
-    }, null);
+    if (!marketData) return null;
+    return marketData.reduce((max, item) => {
+      return item.buy_price_max > max.buy_price_max ? item : max;
+    }, { buy_price_max: 0 });
   };
 
+  const lowestSell = getLowestSell();
+  const highestBuy = getHighestBuy();
+
   return (
-    <div style={{ padding: '20px', fontFamily: 'sans-serif' }}>
-      <h1 style={{ fontSize: '24px', marginBottom: '10px' }}>🛒 Mercado General</h1>
+    <div className="min-h-screen bg-gray-900 text-white p-4">
+      <h1 className="text-3xl font-bold mb-4 text-center">📦 Mercado General - Albion</h1>
 
-      <input
-        type="text"
-        placeholder="Buscar ítem por nombre..."
-        value={searchTerm}
-        onChange={(e) => handleSearch(e.target.value)}
-        style={{ padding: '10px', width: '100%', marginBottom: '20px', fontSize: '16px' }}
-      />
-
-      {filteredItems.map((item) => (
-        <div
-          key={item.id}
-          onClick={() => handleItemClick(item)}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            cursor: 'pointer',
-            borderBottom: '1px solid #ddd',
-            padding: '8px 0',
-          }}
-        >
-          <img src={item.imageUrl} alt={item.name} width={32} height={32} style={{ marginRight: 10 }} />
-          <span>{item.name}</span>
-        </div>
-      ))}
+      <div className="max-w-xl mx-auto relative">
+        <input
+          type="text"
+          value={searchTerm}
+          onChange={handleSearch}
+          placeholder="Buscar ítem..."
+          className="w-full px-4 py-2 rounded bg-gray-800 text-white"
+        />
+        {filteredItems.length > 0 && (
+          <ul className="absolute z-10 bg-gray-800 w-full mt-1 rounded shadow-lg max-h-64 overflow-y-auto">
+            {filteredItems.map((item) => (
+              <li
+                key={item.id}
+                className="flex items-center gap-2 px-4 py-2 hover:bg-gray-700 cursor-pointer"
+                onClick={() => handleItemClick(item)}
+              >
+                <img
+                  src={`https://render.albiononline.com/v1/item/${item.id}.png`}
+                  alt={item.name}
+                  className="w-6 h-6"
+                />
+                {item.name}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
 
       {loading && (
-        <div style={{ marginTop: '20px' }}>
-          <img src="/albion-loader.gif" alt="Cargando..." width={60} />
-          <p>Cargando datos del ítem...</p>
+        <div className="flex justify-center mt-8">
+          <Image src="/albion-loader.gif" alt="Cargando..." width={64} height={64} />
         </div>
       )}
 
-      {!loading && selectedItem && itemPrices && (
-        <div style={{ marginTop: '20px', backgroundColor: '#f5f5f5', padding: '15px', borderRadius: '10px' }}>
-          <h2>{selectedItem.name}</h2>
-          <img src={selectedItem.imageUrl} alt={selectedItem.name} width={64} />
-          <hr />
-          <p><strong>🟢 Precio más bajo de venta:</strong></p>
-          <p>
-            {getLowestSell()
-              ? `${getLowestSell().sell_price_min.toLocaleString()} de plata en ${getLowestSell().city}`
-              : 'No disponible'}
-          </p>
-          <p><strong>🔴 Precio más alto de compra:</strong></p>
-          <p>
-            {getHighestBuy()
-              ? `${getHighestBuy().buy_price_max.toLocaleString()} de plata en ${getHighestBuy().city}`
-              : 'No disponible'}
-          </p>
+      {selectedItem && marketData && !loading && (
+        <div className="mt-8 bg-gray-800 p-4 rounded shadow max-w-3xl mx-auto">
+          <div className="flex items-center gap-4 mb-4">
+            <img
+              src={`https://render.albiononline.com/v1/item/${selectedItem.id}.png`}
+              alt={selectedItem.name}
+              className="w-12 h-12"
+            />
+            <h2 className="text-xl font-semibold">{selectedItem.name}</h2>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="bg-gray-700 p-4 rounded">
+              <h3 className="text-lg font-bold">💰 Precio más bajo (Venta)</h3>
+              <p>{lowestSell?.sell_price_min.toLocaleString()} <span className="text-sm text-gray-400">plata</span></p>
+              <p className="text-sm text-gray-400">📍 {lowestSell?.city}</p>
+            </div>
+            <div className="bg-gray-700 p-4 rounded">
+              <h3 className="text-lg font-bold">🪙 Precio más alto (Compra)</h3>
+              <p>{highestBuy?.buy_price_max.toLocaleString()} <span className="text-sm text-gray-400">plata</span></p>
+              <p className="text-sm text-gray-400">📍 {highestBuy?.city}</p>
+            </div>
+            <div className="bg-gray-700 p-4 rounded">
+              <h3 className="text-lg font-bold">📈 Ganancia Potencial</h3>
+              <p>
+                {highestBuy && lowestSell
+                  ? (highestBuy.buy_price_max - lowestSell.sell_price_min).toLocaleString()
+                  : '0'}{' '}
+                <span className="text-sm text-gray-400">plata</span>
+              </p>
+            </div>
+          </div>
         </div>
       )}
     </div>
   );
-}
+            }

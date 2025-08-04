@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import './styles/Market.module.css';
 
 export default function App() {
   const [items, setItems] = useState([]);

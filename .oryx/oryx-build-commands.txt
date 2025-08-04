@@ -1,3 +1,0 @@
-PlatformWithVersion=Node.js 16.20.2
-BuildCommands=
-, npm install, npm run build

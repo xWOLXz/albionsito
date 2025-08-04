@@ -1,118 +1,120 @@
 import { useEffect, useState } from 'react';
 import Image from 'next/image';
-import items from '../public/items.json';
 
 const API_BACKEND = 'https://albionsito-backend.onrender.com';
 
 export default function Market() {
+  const [items, setItems] = useState([]);
   const [search, setSearch] = useState('');
-  const [filteredItems, setFilteredItems] = useState([]);
-  const [selectedItem, setSelectedItem] = useState(null);
+  const [filtered, setFiltered] = useState([]);
+  const [selected, setSelected] = useState(null);
   const [prices, setPrices] = useState([]);
-  const [loadingPrices, setLoadingPrices] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (search.length === 0) {
-      setFilteredItems([]);
+    fetch(API_BACKEND + '/items')
+      .then(res => res.json())
+      .then(data => setItems(data))
+      .catch(err => console.error('Error cargando items API:', err));
+  }, []);
+
+  useEffect(() => {
+    const term = search.trim().toLowerCase();
+    if (!term) {
+      setFiltered([]);
       return;
     }
-
-    const results = items.filter(item =>
-      item?.name?.toLowerCase?.().includes(search.toLowerCase())
+    setFiltered(
+      items.filter(it => (it.name || '').toLowerCase().includes(term))
     );
+  }, [search, items]);
 
-    setFilteredItems(results);
-  }, [search]);
-
-  const getItemImage = (item) => {
-    if (item.icon) return item.icon;
-    return `https://render.albiononline.com/v1/item/${item.id}.png`;
-  };
-
-  const handleSelectItem = async (item) => {
-    setSelectedItem(item);
-    setLoadingPrices(true);
-
+  const handleSelect = async (it) => {
+    setSelected(it);
+    setLoading(true);
     try {
-      const res = await fetch(`${API_BACKEND}/prices/${item.id}`);
+      const res = await fetch(`${API_BACKEND}/prices/${it.id}`);
       const data = await res.json();
-      setPrices(data);
-    } catch (err) {
-      console.error('Error al cargar precios:', err);
+      setPrices(Array.isArray(data) ? data : []);
+    } catch (e) {
+      console.error('Error obteniendo precios:', e);
       setPrices([]);
     }
-
-    setLoadingPrices(false);
-  };
-
-  const getCityName = (city) => {
-    switch (city) {
-      case 'Bridgewatch': return 'Bridgewatch 🏜️';
-      case 'Martlock': return 'Martlock ❄️';
-      case 'Thetford': return 'Thetford ☠️';
-      case 'Fort Sterling': return 'Fort Sterling 🏰';
-      case 'Lymhurst': return 'Lymhurst 🌳';
-      case 'Caerleon': return 'Caerleon 🔥';
-      case 'Brecilien': return 'Brecilien 📍';
-      default: return city;
-    }
+    setLoading(false);
   };
 
   return (
-    <div className="p-4 text-white bg-black min-h-screen">
-      <h1 className="text-3xl font-bold mb-4 text-center">Buscar Ítem</h1>
-
-      <input
-        type="text"
-        placeholder="Espada, hacha, capa, montura..."
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-        className="w-full p-2 mb-4 text-black rounded"
-      />
-
-      <div className="grid grid-cols-1 gap-4">
-        {filteredItems.map(item => (
-          <div
-            key={item.id}
-            onClick={() => handleSelectItem(item)}
-            className="bg-gray-800 p-4 rounded cursor-pointer hover:bg-gray-700"
-          >
-            <div className="flex items-center space-x-4">
+    <div className="flex flex-col md:flex-row p-4 bg-gray-900 text-white min-h-screen">
+      {/* Buscador */}
+      <div className="md:w-1/3 p-2">
+        <h1 className="text-2xl font-bold mb-4">🔍 Buscar ítem</h1>
+        <input
+          className="w-full p-2 mb-4 rounded text-black"
+          type="text"
+          placeholder="Escribe un ítem..."
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+        />
+        <div className="max-h-[70vh] overflow-auto grid grid-cols-2 gap-2">
+          {filtered.map(it => (
+            <div
+              key={it.id}
+              className="cursor-pointer hover:bg-gray-700 p-2 rounded flex items-center"
+              onClick={() => handleSelect(it)}
+            >
               <Image
-                src={getItemImage(item)}
-                alt={item.name}
-                width={64}
-                height={64}
-                onError={(e) => {
-                  e.target.onerror = null;
+                src={it.icon}
+                width={48}
+                height={48}
+                alt={it.name}
+                onError={e => {
                   e.target.src = '/no-img.png';
                 }}
-                className="rounded w-16 h-16 object-contain"
+                className="rounded"
               />
-              <span className="text-xl">{item.name}</span>
+              <span className="ml-2">{it.name}</span>
             </div>
-          </div>
-        ))}
-      </div>
-
-      {selectedItem && (
-        <div className="mt-10">
-          <h2 className="text-2xl font-semibold mb-2">💰 Precios de: {selectedItem.name}</h2>
-          {loadingPrices ? (
-            <p>Cargando precios...</p>
-          ) : prices.length === 0 ? (
-            <p>No hay datos disponibles.</p>
-          ) : (
-            prices.map((entry, idx) => (
-              <div key={idx} className="bg-gray-900 p-3 mb-2 rounded">
-                <p className="text-yellow-400">{getCityName(entry.city)}</p>
-                <p>🛒 Venta: {entry.sell_price_min > 0 ? `${entry.sell_price_min.toLocaleString()} 🪙` : 'Sin datos'}</p>
-                <p>🧺 Compra: {entry.buy_price_max > 0 ? `${entry.buy_price_max.toLocaleString()} 🪙` : 'Sin datos'}</p>
-              </div>
-            ))
+          ))}
+          {filtered.length === 0 && search && (
+            <p className="text-gray-400">No se encontraron resultados</p>
           )}
         </div>
-      )}
+      </div>
+
+      {/* Panel precios */}
+      <div className="md:w-2/3 p-2">
+        {selected ? (
+          <div>
+            <h2 className="text-xl font-bold mb-2">📋 {selected.name}</h2>
+            {loading ? (
+              <p>Cargando precios...</p>
+            ) : prices.length > 0 ? (
+              <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+                {prices.map((entry, idx) => (
+                  <div key={idx} className="bg-gray-800 p-3 rounded-lg">
+                    <p className="font-semibold">{entry.city}</p>
+                    <p className="text-green-400">
+                      🛒 Venta: {entry.sell_price_min || '—'} 🪙
+                    </p>
+                    <p className="text-yellow-400">
+                      📥 Compra: {entry.buy_price_max || '—'} 🪙
+                    </p>
+                    <p className="text-blue-400">
+                      Margen: {entry.sell_price_min && entry.buy_price_max
+                        ? `${(entry.sell_price_min - entry.buy_price_max).toLocaleString()} 🪙`
+                        : '—'}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-red-500">No hay datos disponibles.</p>
+            )}
+          </div>
+        ) : (
+          <p>Selecciona un ítem para ver precios.</p>
+        )}
+      </div>
     </div>
   );
-            }
+        }

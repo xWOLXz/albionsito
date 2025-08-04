@@ -5,23 +5,23 @@ export default function Market() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filteredItems, setFilteredItems] = useState([]);
   const [selectedItem, setSelectedItem] = useState(null);
-  const [marketData, setMarketData] = useState(null);
-  const [loadingData, setLoadingData] = useState(false);
+  const [itemPrices, setItemPrices] = useState([]);
+  const [loadingPrices, setLoadingPrices] = useState(false);
 
-  // Cargar items.json
+  // ✅ Cargar items.json desde /public
   useEffect(() => {
     fetch('/items.json')
       .then((res) => res.json())
       .then((data) => {
         setItems(data);
-        console.log('✅ items.json cargado:', data.length);
+        console.log('✅ Items cargados:', data.length);
       })
-      .catch((err) => {
-        console.error('❌ Error al cargar items.json:', err);
+      .catch((error) => {
+        console.error('❌ Error al cargar items.json:', error);
       });
   }, []);
 
-  // Búsqueda con debounce
+  // ✅ Debounce búsqueda
   useEffect(() => {
     const delay = setTimeout(() => {
       if (searchTerm.trim() === '') {
@@ -32,127 +32,112 @@ export default function Market() {
       const resultados = items.filter((item) =>
         item.nombre.toLowerCase().includes(searchTerm.toLowerCase())
       );
+
       setFilteredItems(resultados);
-      console.log('🔍 Resultados:', resultados.length);
     }, 300);
 
     return () => clearTimeout(delay);
   }, [searchTerm, items]);
 
-  // Obtener precios desde API Albion 2D
-  useEffect(() => {
-    if (!selectedItem) return;
-
-    const fetchPrices = async () => {
-      setLoadingData(true);
-      try {
-        const response = await fetch(
-          `https://west.albion-online-data.com/api/v2/stats/prices/${selectedItem.id}?locations=Bridgewatch,Martlock,Lymhurst,Thetford,FortSterling,Caerleon,Brecilien&qualities=1`
-        );
-        const data = await response.json();
-        console.log('📦 Datos de mercado:', data);
-        setMarketData(data);
-      } catch (error) {
-        console.error('❌ Error al obtener precios:', error);
-        setMarketData(null);
-      } finally {
-        setLoadingData(false);
-      }
-    };
-
-    fetchPrices();
-  }, [selectedItem]);
-
-  const handleClick = (item) => {
+  // ✅ Al hacer clic en un item
+  const handleSelectItem = async (item) => {
     setSelectedItem(item);
-    setMarketData(null);
-    console.log('🟢 Item seleccionado:', item.nombre);
+    setItemPrices([]);
+    setLoadingPrices(true);
+    console.log(`🔎 Consultando precios para: ${item.id}`);
+
+    try {
+      const response = await fetch(
+        `https://west.albion-online-data.com/api/v2/stats/prices/${item.id}?locations=FortSterling,Thetford,Lymhurst,Bridgewatch,Martlock,Caerleon,Brecilien`
+      );
+      const data = await response.json();
+
+      const precios = data.map((entry) => ({
+        ciudad: entry.city,
+        venta: entry.sell_price_min,
+        compra: entry.buy_price_max,
+      }));
+
+      setItemPrices(precios);
+    } catch (error) {
+      console.error('❌ Error al obtener precios:', error);
+    } finally {
+      setLoadingPrices(false);
+    }
   };
 
   return (
-    <div className="flex flex-col md:flex-row p-4 gap-4 min-h-screen bg-[#1a1a1a] text-white">
-      {/* Panel de búsqueda */}
-      <div className="md:w-1/3">
-        <h1 className="text-xl font-bold mb-4">🔎 Buscar ítem</h1>
+    <div className="min-h-screen bg-gray-950 text-white flex flex-col md:flex-row">
+      {/* Panel Izquierdo: Buscador */}
+      <div className="w-full md:w-1/3 p-4 bg-gray-900 border-r border-gray-700">
+        <h1 className="text-2xl font-bold mb-4 text-white">Buscar Ítem</h1>
+
         <input
           type="text"
           placeholder="Ej: espada, hacha, capa, montura..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full p-2 mb-4 rounded text-black"
+          className="w-full p-2 rounded-md text-black"
         />
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-[70vh] overflow-y-auto">
+
+        <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 gap-4">
           {filteredItems.map((item) => (
             <div
               key={item.id}
-              onClick={() => handleClick(item)}
-              className="bg-[#2b2b2b] hover:bg-[#3a3a3a] p-2 rounded cursor-pointer flex flex-col items-center text-center"
+              onClick={() => handleSelectItem(item)}
+              className="bg-gray-800 hover:bg-gray-700 transition rounded-lg p-2 cursor-pointer flex flex-col items-center"
             >
               <img
                 src={item.imagen}
                 alt={item.nombre}
-                className="w-12 h-12"
+                className="w-12 h-12 mb-1"
                 onError={(e) => {
                   e.target.src = '/no-img.png';
                 }}
               />
-              <span className="text-sm mt-1">{item.nombre}</span>
+              <p className="text-xs text-center">{item.nombre}</p>
             </div>
           ))}
         </div>
       </div>
 
-      {/* Panel de resultados */}
-      <div className="md:w-2/3">
-        {selectedItem && (
+      {/* Panel Derecho: Resultados */}
+      <div className="w-full md:w-2/3 p-4">
+        {selectedItem ? (
           <div>
-            <h2 className="text-xl font-bold mb-2">
-              📊 Precios de: <span className="text-yellow-400">{selectedItem.nombre}</span>
+            <h2 className="text-xl font-bold mb-4">
+              💰 Precios de: {selectedItem.nombre}
             </h2>
-            {loadingData ? (
-              <p className="text-gray-400">Cargando datos del mercado...</p>
-            ) : marketData && marketData.length > 0 ? (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm text-left border mt-2">
-                  <thead>
-                    <tr className="bg-gray-800 text-white">
-                      <th className="px-2 py-1 border">Ciudad</th>
-                      <th className="px-2 py-1 border">Precio Venta</th>
-                      <th className="px-2 py-1 border">Precio Compra</th>
-                      <th className="px-2 py-1 border">Ganancia</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {['Bridgewatch', 'Martlock', 'Lymhurst', 'Thetford', 'FortSterling', 'Caerleon', 'Brecilien'].map((city) => {
-                      const ciudadData = marketData.find((entry) => entry.city === city);
-                      const sell = ciudadData?.sell_price_min || 0;
-                      const buy = ciudadData?.buy_price_max || 0;
-                      const diff = sell && buy ? sell - buy : 0;
 
-                      return (
-                        <tr key={city} className="border-b">
-                          <td className="px-2 py-1 border">{city}</td>
-                          <td className="px-2 py-1 border text-green-400">
-                            {sell > 0 ? sell.toLocaleString() : '—'}
-                          </td>
-                          <td className="px-2 py-1 border text-red-400">
-                            {buy > 0 ? buy.toLocaleString() : '—'}
-                          </td>
-                          <td className="px-2 py-1 border text-yellow-300">
-                            {diff > 0 ? `+${diff.toLocaleString()}` : '—'}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+            {loadingPrices ? (
+              <p className="text-gray-400">⏳ Cargando precios...</p>
+            ) : itemPrices.length > 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                {itemPrices.map((precio) => (
+                  <div
+                    key={precio.ciudad}
+                    className="bg-gray-800 p-4 rounded-xl shadow text-center"
+                  >
+                    <h3 className="font-bold text-lg mb-2">
+                      📍 {precio.ciudad}
+                    </h3>
+                    <p className="text-sm">
+                      🛒 Venta: {precio.venta > 0 ? precio.venta.toLocaleString() + ' 🪙' : <span className="text-red-400">Sin datos</span>}
+                    </p>
+                    <p className="text-sm">
+                      📥 Compra: {precio.compra > 0 ? precio.compra.toLocaleString() + ' 🪙' : <span className="text-red-400">Sin datos</span>}
+                    </p>
+                  </div>
+                ))}
               </div>
             ) : (
-              <p className="text-gray-400">No hay datos disponibles para este ítem.</p>
+              <p className="text-gray-400">Sin información de precios.</p>
             )}
           </div>
+        ) : (
+          <p className="text-gray-400">Selecciona un ítem para ver los precios.</p>
         )}
       </div>
     </div>
   );
-        }
+              }

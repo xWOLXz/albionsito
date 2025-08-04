@@ -1,64 +1,105 @@
-import React, { useEffect, useState } from 'react';
-import ItemTable from './components/ItemTable';
-import { FaSyncAlt } from 'react-icons/fa';
+import { useEffect, useState } from 'react';
+import './App.css';
 
-const API_URL = 'https://albionsito-backend.onrender.com/items';
+const TIERS = ['T1', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'T8'];
 
-function App() {
+export default function App() {
   const [items, setItems] = useState([]);
-  const [search, setSearch] = useState('');
-  const [loading, setLoading] = useState(true);
-
-  const fetchData = async () => {
-    setLoading(true);
-    try {
-      const res = await fetch(API_URL);
-      const data = await res.json();
-      setItems(data);
-    } catch (err) {
-      console.error('Error cargando items:', err);
-    }
-    setLoading(false);
-  };
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filteredItems, setFilteredItems] = useState([]);
+  const [selectedTier, setSelectedTier] = useState('T4');
 
   useEffect(() => {
-    fetchData();
+    fetch('/items.json')
+      .then((res) => res.json())
+      .then((data) => {
+        setItems(data);
+        console.log('✅ Cargado items.json:', data.length, 'ítems');
+      })
+      .catch((err) => {
+        console.error('❌ Error cargando items.json:', err);
+      });
   }, []);
 
-  const filtered = items.filter(item =>
-    item.item_id.toLowerCase().includes(search.toLowerCase())
-  );
+  useEffect(() => {
+    if (searchTerm.trim() === '') {
+      setFilteredItems([]);
+      return;
+    }
+
+    const resultados = items.filter((item) => {
+      const nombreCoincide = item.nombre.toLowerCase().includes(searchTerm.toLowerCase());
+      const sinEncantamiento = !item.id.includes('@');
+      return nombreCoincide && sinEncantamiento;
+    });
+
+    setFilteredItems(resultados);
+    console.log(`🔎 Buscando: "${searchTerm}" => ${resultados.length} resultado(s)`);
+  }, [searchTerm, items]);
+
+  const getTierItems = (tier) => {
+    return filteredItems.filter((item) => item.id.includes(tier));
+  };
+
+  const getIcono = (item) => {
+    if (item.imagen) return item.imagen;
+    return `https://albionsito-backend.onrender.com/icono/${item.id}`;
+  };
 
   return (
-    <div className="p-4 font-sans">
-      <h1 className="text-2xl font-bold mb-4">Market General - Albionsito</h1>
+    <div className="bg-black text-white min-h-screen p-4">
+      <h1 className="text-2xl font-bold mb-4">📦 Market Albionsito</h1>
 
-      <div className="flex items-center gap-2 mb-4">
-        <input
-          type="text"
-          className="border border-gray-400 p-2 rounded w-full"
-          placeholder="Buscar item básico (T4_BAG, T6_CAPE...)"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
-        <button
-          onClick={fetchData}
-          className="p-2 rounded bg-gray-800 text-white hover:bg-gray-700"
-          title="Actualizar"
-        >
-          <FaSyncAlt />
-        </button>
-      </div>
+      <input
+        type="text"
+        placeholder="Buscar ítem base... (ej: Espada Claymore)"
+        value={searchTerm}
+        onChange={(e) => setSearchTerm(e.target.value)}
+        className="w-full p-2 mb-4 rounded-md text-black"
+      />
 
-      {loading ? (
-        <div className="flex justify-center items-center h-[300px]">
-          <img src="/albion-loader.gif" alt="Cargando..." className="w-20" />
-        </div>
-      ) : (
-        <ItemTable items={filtered} />
+      {filteredItems.length > 0 && (
+        <>
+          <div className="flex gap-2 mb-4 flex-wrap">
+            {TIERS.map((tier) => (
+              <button
+                key={tier}
+                onClick={() => setSelectedTier(tier)}
+                className={`px-3 py-1 rounded-full text-sm font-medium border ${
+                  selectedTier === tier
+                    ? 'bg-purple-700 text-white'
+                    : 'bg-gray-700 text-gray-200 hover:bg-purple-800'
+                }`}
+              >
+                {tier}
+              </button>
+            ))}
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+            {getTierItems(selectedTier).map((item) => (
+              <div
+                key={item.id}
+                className="bg-gray-800 p-3 rounded-lg shadow flex flex-col items-center"
+              >
+                <img
+                  src={getIcono(item)}
+                  alt={item.nombre}
+                  className="w-16 h-16 object-contain mb-2"
+                  onError={(e) => {
+                    e.target.src = '/no-img.png';
+                  }}
+                />
+                <p className="text-sm text-center">{item.nombre}</p>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+
+      {searchTerm && filteredItems.length === 0 && (
+        <p className="text-gray-400">No se encontraron ítems base para "{searchTerm}"</p>
       )}
     </div>
   );
 }
-
-export default App;

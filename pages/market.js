@@ -1,120 +1,142 @@
 import { useEffect, useState } from 'react';
-import Image from 'next/image';
-
-const API_BACKEND = 'https://albionsito-backend.onrender.com';
 
 export default function Market() {
   const [items, setItems] = useState([]);
-  const [search, setSearch] = useState('');
-  const [filtered, setFiltered] = useState([]);
-  const [selected, setSelected] = useState(null);
-  const [prices, setPrices] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filteredItems, setFilteredItems] = useState([]);
+  const [selectedItem, setSelectedItem] = useState(null);
+  const [marketData, setMarketData] = useState(null);
+  const [loadingPrices, setLoadingPrices] = useState(false);
 
+  // ✅ Carga inicial de items desde public/items.json
   useEffect(() => {
-    fetch(API_BACKEND + '/items')
-      .then(res => res.json())
-      .then(data => setItems(data))
-      .catch(err => console.error('Error cargando items API:', err));
+    fetch('/items.json')
+      .then((res) => res.json())
+      .then((data) => {
+        setItems(data);
+        console.log('✅ items.json cargado:', data.length, 'ítems');
+      })
+      .catch((err) => console.error('❌ Error cargando items.json:', err));
   }, []);
 
+  // ✅ Filtro de búsqueda con debounce
   useEffect(() => {
-    const term = search.trim().toLowerCase();
-    if (!term) {
-      setFiltered([]);
-      return;
-    }
-    setFiltered(
-      items.filter(it => (it.name || '').toLowerCase().includes(term))
-    );
-  }, [search, items]);
+    const delayDebounce = setTimeout(() => {
+      if (searchTerm.trim() === '') {
+        setFilteredItems([]);
+        return;
+      }
 
-  const handleSelect = async (it) => {
-    setSelected(it);
-    setLoading(true);
+      const resultados = items.filter((item) =>
+        item.nombre.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+
+      setFilteredItems(resultados);
+      console.log('🔎 Búsqueda:', searchTerm, '| Resultados:', resultados.length);
+    }, 300);
+
+    return () => clearTimeout(delayDebounce);
+  }, [searchTerm, items]);
+
+  // ✅ Cargar datos del mercado desde tu backend en Render
+  const fetchMarketData = async (itemId) => {
     try {
-      const res = await fetch(`${API_BACKEND}/prices/${it.id}`);
+      setLoadingPrices(true);
+      setMarketData(null);
+
+      const res = await fetch(
+        `https://albionsito-backend.onrender.com/precios/${itemId}`
+      );
       const data = await res.json();
-      setPrices(Array.isArray(data) ? data : []);
-    } catch (e) {
-      console.error('Error obteniendo precios:', e);
-      setPrices([]);
+
+      if (data && data.length > 0) {
+        console.log('🟢 Precios encontrados:', data);
+        setMarketData(data);
+      } else {
+        console.warn('⚠️ Sin datos de precios para', itemId);
+      }
+    } catch (err) {
+      console.error('❌ Error obteniendo precios:', err);
+    } finally {
+      setLoadingPrices(false);
     }
-    setLoading(false);
+  };
+
+  const handleItemClick = (item) => {
+    console.log('🟢 Ítem seleccionado:', item);
+    setSelectedItem(item);
+    fetchMarketData(item.id);
   };
 
   return (
-    <div className="flex flex-col md:flex-row p-4 bg-gray-900 text-white min-h-screen">
-      {/* Buscador */}
-      <div className="md:w-1/3 p-2">
-        <h1 className="text-2xl font-bold mb-4">🔍 Buscar ítem</h1>
+    <div className="flex h-screen bg-black text-white overflow-hidden">
+      {/* Panel Izquierdo - Búsqueda */}
+      <div className="w-full md:w-1/3 p-4 overflow-y-auto border-r border-gray-700 bg-gray-900">
+        <h1 className="text-2xl font-bold mb-4">📦 Market</h1>
         <input
-          className="w-full p-2 mb-4 rounded text-black"
           type="text"
-          placeholder="Escribe un ítem..."
-          value={search}
-          onChange={e => setSearch(e.target.value)}
+          placeholder="Buscar ítem (ej: capa, espada...)"
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="w-full p-2 mb-4 rounded-md text-black"
         />
-        <div className="max-h-[70vh] overflow-auto grid grid-cols-2 gap-2">
-          {filtered.map(it => (
+
+        {filteredItems.length === 0 && searchTerm && (
+          <p className="text-gray-400">No se encontraron ítems.</p>
+        )}
+
+        <div className="grid grid-cols-2 gap-3">
+          {filteredItems.map((item) => (
             <div
-              key={it.id}
-              className="cursor-pointer hover:bg-gray-700 p-2 rounded flex items-center"
-              onClick={() => handleSelect(it)}
+              key={item.id}
+              onClick={() => handleItemClick(item)}
+              className="bg-gray-800 hover:bg-gray-700 transition cursor-pointer rounded-lg p-2 flex flex-col items-center"
             >
-              <Image
-                src={it.icon}
-                width={48}
-                height={48}
-                alt={it.name}
-                onError={e => {
-                  e.target.src = '/no-img.png';
+              <img
+                src={item.imagen}
+                alt={item.nombre}
+                className="w-16 h-16 object-contain"
+                onError={(e) => {
+                  // 🧠 Si falla imagen, busca en tu API de respaldo
+                  e.target.src = `https://albionsito-backend.onrender.com/icono/${item.id}`;
                 }}
-                className="rounded"
               />
-              <span className="ml-2">{it.name}</span>
+              <p className="text-xs text-center mt-1">{item.nombre}</p>
             </div>
           ))}
-          {filtered.length === 0 && search && (
-            <p className="text-gray-400">No se encontraron resultados</p>
-          )}
         </div>
       </div>
 
-      {/* Panel precios */}
-      <div className="md:w-2/3 p-2">
-        {selected ? (
-          <div>
-            <h2 className="text-xl font-bold mb-2">📋 {selected.name}</h2>
-            {loading ? (
-              <p>Cargando precios...</p>
-            ) : prices.length > 0 ? (
-              <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-                {prices.map((entry, idx) => (
-                  <div key={idx} className="bg-gray-800 p-3 rounded-lg">
-                    <p className="font-semibold">{entry.city}</p>
-                    <p className="text-green-400">
-                      🛒 Venta: {entry.sell_price_min || '—'} 🪙
-                    </p>
-                    <p className="text-yellow-400">
-                      📥 Compra: {entry.buy_price_max || '—'} 🪙
-                    </p>
-                    <p className="text-blue-400">
-                      Margen: {entry.sell_price_min && entry.buy_price_max
-                        ? `${(entry.sell_price_min - entry.buy_price_max).toLocaleString()} 🪙`
-                        : '—'}
-                    </p>
+      {/* Panel Derecho - Resultados de Precios */}
+      <div className="hidden md:block w-2/3 p-6 overflow-y-auto bg-gray-950">
+        {selectedItem ? (
+          <>
+            <h2 className="text-xl font-bold mb-2">🧾 {selectedItem.nombre}</h2>
+            <p className="text-sm text-gray-400 mb-4">ID: {selectedItem.id}</p>
+
+            {loadingPrices ? (
+              <p className="text-yellow-300">Cargando precios...</p>
+            ) : marketData ? (
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                {marketData.map((entry) => (
+                  <div
+                    key={entry.city}
+                    className="bg-gray-800 p-3 rounded-xl shadow text-sm"
+                  >
+                    <h3 className="font-bold mb-1">{entry.city}</h3>
+                    <p>🛒 Venta: {entry.sell_price_min?.toLocaleString() || '❌'}</p>
+                    <p>💰 Compra: {entry.buy_price_max?.toLocaleString() || '❌'}</p>
                   </div>
                 ))}
               </div>
             ) : (
-              <p className="text-red-500">No hay datos disponibles.</p>
+              <p className="text-gray-500">No hay precios disponibles.</p>
             )}
-          </div>
+          </>
         ) : (
-          <p>Selecciona un ítem para ver precios.</p>
+          <p className="text-gray-500">Selecciona un ítem para ver precios.</p>
         )}
       </div>
     </div>
   );
-        }
+                      }

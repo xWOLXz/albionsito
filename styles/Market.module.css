@@ -1,52 +1,84 @@
 .container {
-  padding: 2rem;
-  color: white;
-}
-
-.grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 1rem;
-}
-
-.card {
-  background: #1e1e1e;
-  border-radius: 10px;
-  padding: 1rem;
-  text-align: center;
-  box-shadow: 0 0 5px #444;
-}
-
-.card img {
-  width: 80px;
-  height: 80px;
-  margin-bottom: 0.5rem;
-}
-
-.search {
-  padding: 0.5rem;
-  margin-bottom: 1rem;
-  width: 100%;
-  max-width: 400px;
-}
-
-.loading {
-  text-align: center;
-  font-size: 1.5rem;
-}
-
-.pagination {
-  margin-top: 2rem;
   display: flex;
-  justify-content: center;
-  gap: 1rem;
+  flex-direction: row;
+  padding: 20px;
+  gap: 20px;
+  background: #0f0f0f url('/bg-albion.jpg') no-repeat center center;
+  background-size: cover;
+  min-height: 100vh;
 }
 
-button {
-  padding: 0.5rem 1rem;
-  background: #333;
-  border: none;
-  color: white;
+.searchPanel {
+  flex: 1;
+  background: rgba(20, 20, 20, 0.95);
+  padding: 16px;
+  border-radius: 12px;
+  overflow-y: auto;
+  max-height: 90vh;
+}
+
+.resultPanel {
+  flex: 2;
+  background: rgba(10, 10, 10, 0.95);
+  padding: 16px;
+  border-radius: 12px;
+  overflow-y: auto;
+  max-height: 90vh;
+}
+
+.searchInput {
+  width: 100%;
+  padding: 8px;
+  border-radius: 8px;
+  margin-bottom: 12px;
+  background: #fff;
+  color: #000;
+  font-weight: bold;
+  font-size: 16px;
+}
+
+.itemsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+  gap: 10px;
+}
+
+.itemCard {
+  background: #2d2d2d;
+  border-radius: 10px;
+  padding: 6px;
+  text-align: center;
   cursor: pointer;
-  border-radius: 5px;
+  transition: transform 0.2s ease;
+}
+
+.itemCard:hover {
+  background: #3d3d3d;
+  transform: scale(1.05);
+}
+
+.itemCard img {
+  width: 50px;
+  height: 50px;
+  margin-bottom: 4px;
+}
+
+.resultBox {
+  background: #181818;
+  border-radius: 10px;
+  padding: 16px;
+  color: #fff;
+}
+
+.priceTable {
+  width: 100%;
+  margin-top: 12px;
+  border-collapse: collapse;
+}
+
+.priceTable th,
+.priceTable td {
+  border: 1px solid #555;
+  padding: 8px;
+  text-align: center;
 }

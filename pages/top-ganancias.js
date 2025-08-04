@@ -1,124 +1,106 @@
 import { useEffect, useState } from 'react';
-import styles from '../styles/TopGanancias.module.css';
+import Image from 'next/image';
+import items from '../public/items.json';
 
-const CITIES = ['Bridgewatch', 'Martlock', 'Thetford', 'Lymhurst', 'Fort Sterling', 'Caerleon', 'Brecilien'];
-const API_BASE_URL = 'https://west.albion-online-data.com/api/v2/stats/prices';
+const API = 'https://albionsito-backend.onrender.com';
 
-const TopGanancias = () => {
-  const [data, setData] = useState([]);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [loading, setLoading] = useState(false);
-  const itemsPerPage = 30;
+export default function TopGanancias() {
+  const [itemsData, setItemsData] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  const getItemImage = (itemId) => {
+    const item = items.find(i => i.id === itemId);
+    if (item && item.icon) return item.icon;
+    return `https://render.albiononline.com/v1/item/${itemId}.png`;
+  };
+
+  const getItemName = (itemId) => {
+    const item = items.find(i => i.id === itemId);
+    return item ? item.name : itemId;
+  };
+
+  const getCityEmoji = (city) => {
+    switch (city) {
+      case 'Bridgewatch': return '🏜️ Bridgewatch';
+      case 'Martlock': return '❄️ Martlock';
+      case 'Thetford': return '☠️ Thetford';
+      case 'Fort Sterling': return '🏰 Fort Sterling';
+      case 'Lymhurst': return '🌳 Lymhurst';
+      case 'Caerleon': return '🔥 Caerleon';
+      case 'Brecilien': return '📍 Brecilien';
+      default: return city;
+    }
+  };
 
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
       try {
-        const itemIds = [
-          'T4_BAG', 'T5_BAG', 'T6_BAG', 'T7_BAG', 'T8_BAG',
-          'T4_CAPE', 'T5_CAPE', 'T6_CAPE', 'T7_CAPE', 'T8_CAPE',
-          'T4_MEAL_SOUP', 'T5_MEAL_SOUP', 'T6_MEAL_SOUP',
-          'T4_POTION_HEAL', 'T5_POTION_HEAL', 'T6_POTION_HEAL'
-        ];
-
-        const response = await fetch(`${API_BASE_URL}/${itemIds.join(',')}?locations=${CITIES.join(',')}&qualities=1`);
-        const prices = await response.json();
-
-        const itemsMap = {};
-
-        for (const item of prices) {
-          const { item_id, city, sell_price_min, buy_price_max } = item;
-          if (!itemsMap[item_id]) {
-            itemsMap[item_id] = {
-              item_id,
-              sell: { price: sell_price_min || 0, city },
-              buy: { price: buy_price_max || 0, city }
-            };
-          } else {
-            if (sell_price_min && sell_price_min < itemsMap[item_id].sell.price) {
-              itemsMap[item_id].sell = { price: sell_price_min, city };
-            }
-            if (buy_price_max && buy_price_max > itemsMap[item_id].buy.price) {
-              itemsMap[item_id].buy = { price: buy_price_max, city };
-            }
-          }
-        }
-
-        const processedItems = Object.values(itemsMap)
-          .map(item => ({
-            ...item,
-            margin: item.buy.price - item.sell.price
-          }))
-          .filter(item => item.sell.price > 0 && item.buy.price > 0 && item.margin > 0)
-          .sort((a, b) => b.margin - a.margin);
-
-        setData(processedItems);
-      } catch (error) {
-        console.error('Error al obtener los datos:', error);
-      } finally {
-        setLoading(false);
+        const res = await fetch(`${API}/top`);
+        const data = await res.json();
+        setItemsData(data.slice(0, 30));
+      } catch (err) {
+        console.error('Error al cargar top:', err);
       }
+      setLoading(false);
     };
 
     fetchData();
   }, []);
 
-  const paginatedItems = data.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
-  const totalPages = Math.ceil(data.length / itemsPerPage);
-
-  const nextPage = () => {
-    if (currentPage < totalPages) setCurrentPage(prev => prev + 1);
-  };
-
-  const prevPage = () => {
-    if (currentPage > 1) setCurrentPage(prev => prev - 1);
-  };
-
   return (
-    <div className={styles.container}>
-      <h1>🤑 Top Ganancias</h1>
-
+    <div className="p-4 bg-black text-white min-h-screen">
+      <h1 className="text-3xl font-bold text-center mb-6">🔥 Top 30 Ganancias</h1>
       {loading ? (
-        <p>Cargando datos desde el mercado de Albion Online...</p>
+        <p className="text-center">Cargando ítems más rentables...</p>
       ) : (
-        <>
-          <table className={styles.table}>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse">
             <thead>
-              <tr>
-                <th>Ítem</th>
-                <th>Compra + Ciudad</th>
-                <th>Venta + Ciudad</th>
-                <th>Margen</th>
+              <tr className="bg-gray-800">
+                <th className="p-2">Ícono</th>
+                <th className="p-2">Ítem</th>
+                <th className="p-2">Compra</th>
+                <th className="p-2">Venta</th>
+                <th className="p-2">Margen</th>
               </tr>
             </thead>
             <tbody>
-              {paginatedItems.map((item, index) => (
-                <tr key={`${item.item_id}-${index}`}>
-                  <td>
-                    <img
-                      src={`https://render.albiononline.com/v1/item/${item.item_id}.png`}
-                      alt={item.item_id}
-                      className={styles.icon}
+              {itemsData.map((entry, i) => (
+                <tr key={i} className="border-b border-gray-700 hover:bg-gray-900">
+                  <td className="p-2">
+                    <Image
+                      src={getItemImage(entry.item_id)}
+                      alt={entry.item_id}
+                      width={48}
+                      height={48}
+                      onError={(e) => {
+                        e.target.onerror = null;
+                        e.target.src = '/no-img.png';
+                      }}
+                      className="rounded w-12 h-12 object-contain"
                     />
-                    <span>{item.item_id}</span>
                   </td>
-                  <td>{item.sell.price.toLocaleString()} 🏙️ {item.sell.city}</td>
-                  <td>{item.buy.price.toLocaleString()} 🏙️ {item.buy.city}</td>
-                  <td>💰 {item.margin.toLocaleString()}</td>
+                  <td className="p-2">{getItemName(entry.item_id)}</td>
+                  <td className="p-2 text-green-400">
+                    {entry.buy_price.toLocaleString()} 🪙
+                    <br />
+                    <small>{getCityEmoji(entry.buy_city)}</small>
+                  </td>
+                  <td className="p-2 text-yellow-300">
+                    {entry.sell_price.toLocaleString()} 🪙
+                    <br />
+                    <small>{getCityEmoji(entry.sell_city)}</small>
+                  </td>
+                  <td className="p-2 text-blue-400 font-semibold">
+                    +{entry.margin.toLocaleString()} 🪙
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
-
-          <div className={styles.pagination}>
-            <button onClick={prevPage} disabled={currentPage === 1}>⬅️ Anterior</button>
-            <span>Página {currentPage} de {totalPages}</span>
-            <button onClick={nextPage} disabled={currentPage === totalPages}>Siguiente ➡️</button>
-          </div>
-        </>
+        </div>
       )}
     </div>
   );
-};
-
-export default TopGanancias;
+                        }

@@ -18,7 +18,7 @@ export default function Market() {
     }
 
     const results = items.filter(item =>
-      item.name.toLowerCase().includes(search.toLowerCase())
+      item?.name?.toLowerCase?.().includes(search.toLowerCase())
     );
 
     setFilteredItems(results);

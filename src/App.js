@@ -1,105 +1,129 @@
 import { useEffect, useState } from 'react';
-import './App.css';
-
-const TIERS = ['T1', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'T8'];
+import './styles/Market.module.css';
 
 export default function App() {
   const [items, setItems] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [filteredItems, setFilteredItems] = useState([]);
-  const [selectedTier, setSelectedTier] = useState('T4');
+  const [selectedItem, setSelectedItem] = useState(null);
+  const [marketData, setMarketData] = useState({});
+  const [activeTier, setActiveTier] = useState('.0');
 
+  // 🔄 Cargar ítems base desde public/items.json
   useEffect(() => {
     fetch('/items.json')
-      .then((res) => res.json())
-      .then((data) => {
-        setItems(data);
-        console.log('✅ Cargado items.json:', data.length, 'ítems');
+      .then(res => res.json())
+      .then(data => {
+        setItems(data.filter(i => i.id.match(/T\d+_.+_LEVEL0$/))); // Solo base tier
       })
-      .catch((err) => {
-        console.error('❌ Error cargando items.json:', err);
-      });
+      .catch(err => console.error('❌ Error cargando items:', err));
   }, []);
 
+  // 🔍 Buscar ítems por nombre
   useEffect(() => {
-    if (searchTerm.trim() === '') {
-      setFilteredItems([]);
-      return;
-    }
-
-    const resultados = items.filter((item) => {
-      const nombreCoincide = item.nombre.toLowerCase().includes(searchTerm.toLowerCase());
-      const sinEncantamiento = !item.id.includes('@');
-      return nombreCoincide && sinEncantamiento;
-    });
-
-    setFilteredItems(resultados);
-    console.log(`🔎 Buscando: "${searchTerm}" => ${resultados.length} resultado(s)`);
+    const delay = setTimeout(() => {
+      if (searchTerm.trim() === '') {
+        setFilteredItems([]);
+      } else {
+        const term = searchTerm.toLowerCase();
+        setFilteredItems(items.filter(i => i.nombre.toLowerCase().includes(term)));
+      }
+    }, 200);
+    return () => clearTimeout(delay);
   }, [searchTerm, items]);
 
-  const getTierItems = (tier) => {
-    return filteredItems.filter((item) => item.id.includes(tier));
-  };
+  const handleItemClick = async (item) => {
+    setSelectedItem(item);
+    setActiveTier('.0');
 
-  const getIcono = (item) => {
-    if (item.imagen) return item.imagen;
-    return `https://albionsito-backend.onrender.com/icono/${item.id}`;
+    const tiers = ['.0', '.1', '.2', '.3', '.4'];
+    const tierData = {};
+
+    for (const tier of tiers) {
+      const itemId = item.id.replace('LEVEL0', `LEVEL${tier.slice(1)}`);
+      try {
+        const res = await fetch(`https://albionsito-backend.onrender.com/precios/${itemId}`);
+        const data = await res.json();
+        tierData[tier] = data;
+      } catch {
+        tierData[tier] = [];
+      }
+    }
+
+    setMarketData(tierData);
   };
 
   return (
-    <div className="bg-black text-white min-h-screen p-4">
-      <h1 className="text-2xl font-bold mb-4">📦 Market Albionsito</h1>
+    <div className="flex h-screen text-white bg-black">
+      {/* IZQUIERDA: Buscador + Ítems */}
+      <div className="w-1/3 p-4 overflow-y-auto border-r border-gray-700 bg-gray-900">
+        <h1 className="text-xl font-bold mb-3">📦 Market</h1>
+        <input
+          type="text"
+          placeholder="Buscar ítem..."
+          className="w-full p-2 mb-4 text-black rounded"
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+        />
+        <div className="grid grid-cols-2 gap-2">
+          {filteredItems.map((item) => (
+            <div
+              key={item.id}
+              onClick={() => handleItemClick(item)}
+              className="cursor-pointer p-2 rounded hover:bg-gray-800"
+            >
+              <img
+                src={item.imagen}
+                onError={(e) => {
+                  e.target.src = `https://albionsito-backend.onrender.com/icono/${item.id}`;
+                  e.target.onerror = () => (e.target.src = '/no-img.png');
+                }}
+                alt={item.nombre}
+                className="w-12 h-12 object-contain mx-auto"
+              />
+              <p className="text-xs text-center mt-1">{item.nombre}</p>
+            </div>
+          ))}
+        </div>
+      </div>
 
-      <input
-        type="text"
-        placeholder="Buscar ítem base... (ej: Espada Claymore)"
-        value={searchTerm}
-        onChange={(e) => setSearchTerm(e.target.value)}
-        className="w-full p-2 mb-4 rounded-md text-black"
-      />
+      {/* DERECHA: Resultados */}
+      <div className="w-2/3 p-6 overflow-y-auto bg-gray-950">
+        {selectedItem ? (
+          <>
+            <h2 className="text-2xl font-bold mb-2">{selectedItem.nombre}</h2>
+            <p className="text-sm text-gray-400 mb-4">ID: {selectedItem.id}</p>
 
-      {filteredItems.length > 0 && (
-        <>
-          <div className="flex gap-2 mb-4 flex-wrap">
-            {TIERS.map((tier) => (
-              <button
-                key={tier}
-                onClick={() => setSelectedTier(tier)}
-                className={`px-3 py-1 rounded-full text-sm font-medium border ${
-                  selectedTier === tier
-                    ? 'bg-purple-700 text-white'
-                    : 'bg-gray-700 text-gray-200 hover:bg-purple-800'
-                }`}
-              >
-                {tier}
-              </button>
-            ))}
-          </div>
+            {/* PESTAÑAS POR TIER */}
+            <div className="flex gap-2 mb-4">
+              {Object.keys(marketData).map((tier) => (
+                <button
+                  key={tier}
+                  onClick={() => setActiveTier(tier)}
+                  className={`px-3 py-1 rounded ${
+                    activeTier === tier ? 'bg-yellow-500 text-black' : 'bg-gray-700'
+                  }`}
+                >
+                  Tier {tier}
+                </button>
+              ))}
+            </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-            {getTierItems(selectedTier).map((item) => (
-              <div
-                key={item.id}
-                className="bg-gray-800 p-3 rounded-lg shadow flex flex-col items-center"
-              >
-                <img
-                  src={getIcono(item)}
-                  alt={item.nombre}
-                  className="w-16 h-16 object-contain mb-2"
-                  onError={(e) => {
-                    e.target.src = '/no-img.png';
-                  }}
-                />
-                <p className="text-sm text-center">{item.nombre}</p>
-              </div>
-            ))}
-          </div>
-        </>
-      )}
-
-      {searchTerm && filteredItems.length === 0 && (
-        <p className="text-gray-400">No se encontraron ítems base para "{searchTerm}"</p>
-      )}
+            {/* DATOS DE MERCADO */}
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              {(marketData[activeTier] || []).map((entry) => (
+                <div key={entry.city} className="bg-gray-800 p-3 rounded shadow text-sm">
+                  <h3 className="font-bold mb-1">{entry.city}</h3>
+                  <p>🛒 Venta: {entry.sell_price_min?.toLocaleString() || '❌'}</p>
+                  <p>💰 Compra: {entry.buy_price_max?.toLocaleString() || '❌'}</p>
+                </div>
+              ))}
+            </div>
+          </>
+        ) : (
+          <p className="text-gray-500">Selecciona un ítem para ver precios.</p>
+        )}
+      </div>
     </div>
   );
-}
+        }

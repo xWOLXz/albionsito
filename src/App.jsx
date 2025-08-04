@@ -1,128 +1,162 @@
 import React, { useEffect, useState } from "react";
 import "./App.css";
 
-const backendURL = "https://albionsito-backend.onrender.com";
-const itemsJSONUrl = "/items.json";
+const API_ITEMS = "https://albionsito-backend.onrender.com/items";
+const ITEMS_JSON = "/items.json"; // desde public/
 
-export default function App() {
-  const [items, setItems] = useState([]);
-  const [filteredItems, setFilteredItems] = useState([]);
-  const [search, setSearch] = useState("");
-  const [selectedItem, setSelectedItem] = useState(null);
-  const [prices, setPrices] = useState([]);
-  const [loading, setLoading] = useState(false);
+const calidadTexto = {
+  1: "I",
+  2: "II",
+  3: "III",
+  4: "IV",
+  5: "V",
+};
+
+function App() {
+  const [datos, setDatos] = useState([]);
+  const [busqueda, setBusqueda] = useState("");
+  const [filtrado, setFiltrado] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [nombres, setNombres] = useState({});
+
+  const cargarItems = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch(API_ITEMS);
+      const data = await res.json();
+      setDatos(data);
+    } catch (err) {
+      console.error("Error cargando datos:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const cargarNombres = async () => {
+    try {
+      const res = await fetch(ITEMS_JSON);
+      const data = await res.json();
+      const nombresMap = {};
+      data.forEach((item) => {
+        nombresMap[item.id] = item.name;
+      });
+      setNombres(nombresMap);
+    } catch (err) {
+      console.error("Error cargando nombres:", err);
+    }
+  };
 
   useEffect(() => {
-    fetch(itemsJSONUrl)
-      .then((res) => res.json())
-      .then(setItems)
-      .catch(() => {
-        fetch(`${backendURL}/items`)
-          .then((res) => res.json())
-          .then(setItems)
-          .catch(() => setItems([]));
-      });
+    cargarItems();
+    cargarNombres();
   }, []);
 
   useEffect(() => {
-    const filtered = items.filter((item) =>
-      item.name?.toLowerCase().includes(search.toLowerCase())
-    );
-    setFilteredItems(filtered);
-  }, [search, items]);
+    const agrupados = {};
+    datos.forEach((item) => {
+      const key = `${item.item_id}-${item.quality}`;
+      if (!agrupados[key]) {
+        agrupados[key] = {
+          item_id: item.item_id,
+          quality: item.quality,
+          mejorVenta: item,
+          mejorCompra: item,
+        };
+      } else {
+        if (item.sell_price_max > agrupados[key].mejorVenta.sell_price_max) {
+          agrupados[key].mejorVenta = item;
+        }
+        if (
+          item.buy_price_min > 0 &&
+          (agrupados[key].mejorCompra.buy_price_min === 0 ||
+            item.buy_price_min < agrupados[key].mejorCompra.buy_price_min)
+        ) {
+          agrupados[key].mejorCompra = item;
+        }
+      }
+    });
 
-  const handleItemClick = (item) => {
-    setSelectedItem(item);
-    setLoading(true);
-    fetch(`${backendURL}/prices/${item.id}`)
-      .then((res) => res.json())
-      .then((data) => {
-        setPrices(data);
-        setLoading(false);
-      })
-      .catch(() => setPrices([]));
-  };
+    const resultado = Object.values(agrupados).map((grupo) => {
+      const margen =
+        grupo.mejorVenta.sell_price_max - grupo.mejorCompra.buy_price_min;
+      return {
+        item_id: grupo.item_id,
+        quality: grupo.quality,
+        ciudadVenta: grupo.mejorVenta.city,
+        venta: grupo.mejorVenta.sell_price_max,
+        ciudadCompra: grupo.mejorCompra.city,
+        compra: grupo.mejorCompra.buy_price_min,
+        margen,
+      };
+    });
+
+    const filtrado = resultado
+      .filter((item) =>
+        item.item_id.toLowerCase().includes(busqueda.toLowerCase())
+      )
+      .sort((a, b) => b.margen - a.margen);
+
+    setFiltrado(filtrado);
+  }, [datos, busqueda]);
 
   return (
-    <div style={{ display: "flex", padding: "1rem" }}>
-      {/* Columna izquierda */}
-      <div style={{ width: "30%", paddingRight: "1rem" }}>
-        <h1>
-          <img
-            src="/favicon.ico"
-            alt="Albionsito"
-            style={{ width: 32, verticalAlign: "middle", marginRight: 10 }}
-          />
-          Mercado
-        </h1>
-        <input
-          type="text"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Buscar ítem..."
-          style={{ width: "100%", marginBottom: "10px" }}
-        />
-        <div style={{ maxHeight: "80vh", overflowY: "auto" }}>
-          {filteredItems.map((item) => (
-            <div key={item.id}>
-              <button
-                onClick={() => handleItemClick(item)}
-                style={{ display: "flex", alignItems: "center", width: "100%" }}
-              >
-                <img
-                  src={`https://render.albiononline.com/v1/item/${item.id}.png`}
-                  alt={item.name}
-                  style={{ width: 30, height: 30, marginRight: 10 }}
-                />
-                {item.name}
-              </button>
-            </div>
-          ))}
-        </div>
-      </div>
+    <div className="App">
+      <h1>📦 Albionsito <span style={{ color: "#888" }}>Mercado</span></h1>
+      <input
+        type="text"
+        placeholder="Buscar ítem..."
+        value={busqueda}
+        onChange={(e) => setBusqueda(e.target.value)}
+        style={{ marginBottom: "10px", padding: "6px", fontSize: "16px" }}
+      />
+      <button onClick={cargarItems} title="Actualizar">
+        🔄
+      </button>
 
-      {/* Columna derecha */}
-      <div style={{ width: "70%" }}>
-        {selectedItem ? (
-          <>
-            <h2>
-              Resultados para:{" "}
-              <img
-                src={`https://render.albiononline.com/v1/item/${selectedItem.id}.png`}
-                alt={selectedItem.name}
-                style={{ width: 30, verticalAlign: "middle", marginRight: 10 }}
-              />
-              {selectedItem.name}
-            </h2>
-            {loading ? (
-              <p>Cargando precios...</p>
-            ) : (
-              <table border="1" cellPadding="6">
-                <thead>
-                  <tr>
-                    <th>Ciudad</th>
-                    <th>Calidad</th>
-                    <th>Venta ↑</th>
-                    <th>Compra ↑</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {prices.map((p, i) => (
-                    <tr key={i}>
-                      <td>{p.city}</td>
-                      <td>{p.quality}</td>
-                      <td>{p.sell_price_min}</td>
-                      <td>{p.buy_price_max}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </>
-        ) : (
-          <p>Selecciona un item para ver precios.</p>
-        )}
-      </div>
+      {loading ? (
+        <div style={{ marginTop: "20px" }}>
+          <img src="/albion-loader.gif" alt="Cargando..." width="120" />
+        </div>
+      ) : (
+        <table>
+          <thead>
+            <tr>
+              <th>Ítem</th>
+              <th>Calidad</th>
+              <th>Venta ↑</th>
+              <th>Ciudad</th>
+              <th>Compra ↓</th>
+              <th>Ciudad</th>
+              <th>Ganancia 💰</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filtrado.map((item, index) => (
+              <tr key={index}>
+                <td style={{ textAlign: "left" }}>
+                  <img
+                    src={`https://render.albiononline.com/v1/item/${item.item_id}.png`}
+                    alt={item.item_id}
+                    width="30"
+                    style={{ verticalAlign: "middle", marginRight: "6px" }}
+                  />
+                  {nombres[item.item_id] || item.item_id}
+                </td>
+                <td>{calidadTexto[item.quality]}</td>
+                <td>{item.venta.toLocaleString()}</td>
+                <td>{item.ciudadVenta}</td>
+                <td>{item.compra.toLocaleString()}</td>
+                <td>{item.ciudadCompra}</td>
+                <td style={{ fontWeight: "bold" }}>
+                  {item.margen.toLocaleString()}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
     </div>
   );
 }
+
+export default App;

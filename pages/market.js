@@ -1,30 +1,29 @@
 import { useEffect, useState } from 'react';
-import styles from '../styles/Market.module.css';
 
 export default function Market() {
   const [items, setItems] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [filteredItems, setFilteredItems] = useState([]);
   const [selectedItem, setSelectedItem] = useState(null);
-  const [precios, setPrecios] = useState(null);
-  const [loading, setLoading] = useState(false);
+  const [marketData, setMarketData] = useState(null);
+  const [loadingData, setLoadingData] = useState(false);
 
-  // 🔄 Cargar items desde /public/items.json
+  // Cargar items.json
   useEffect(() => {
     fetch('/items.json')
       .then((res) => res.json())
       .then((data) => {
         setItems(data);
-        console.log('✅ Items cargados:', data.length);
+        console.log('✅ items.json cargado:', data.length);
       })
-      .catch((error) => {
-        console.error('❌ Error cargando items.json:', error);
+      .catch((err) => {
+        console.error('❌ Error al cargar items.json:', err);
       });
   }, []);
 
-  // 🔎 Filtro en vivo con debounce
+  // Búsqueda con debounce
   useEffect(() => {
-    const delayDebounce = setTimeout(() => {
+    const delay = setTimeout(() => {
       if (searchTerm.trim() === '') {
         setFilteredItems([]);
         return;
@@ -33,118 +32,127 @@ export default function Market() {
       const resultados = items.filter((item) =>
         item.nombre.toLowerCase().includes(searchTerm.toLowerCase())
       );
-
       setFilteredItems(resultados);
-    }, 250);
+      console.log('🔍 Resultados:', resultados.length);
+    }, 300);
 
-    return () => clearTimeout(delayDebounce);
+    return () => clearTimeout(delay);
   }, [searchTerm, items]);
 
-  // 📦 Al seleccionar item, traer precios desde API oficial Albion 2D
+  // Obtener precios desde API Albion 2D
+  useEffect(() => {
+    if (!selectedItem) return;
+
+    const fetchPrices = async () => {
+      setLoadingData(true);
+      try {
+        const response = await fetch(
+          `https://west.albion-online-data.com/api/v2/stats/prices/${selectedItem.id}?locations=Bridgewatch,Martlock,Lymhurst,Thetford,FortSterling,Caerleon,Brecilien&qualities=1`
+        );
+        const data = await response.json();
+        console.log('📦 Datos de mercado:', data);
+        setMarketData(data);
+      } catch (error) {
+        console.error('❌ Error al obtener precios:', error);
+        setMarketData(null);
+      } finally {
+        setLoadingData(false);
+      }
+    };
+
+    fetchPrices();
+  }, [selectedItem]);
+
   const handleClick = (item) => {
     setSelectedItem(item);
-    setLoading(true);
-    setPrecios(null);
-
-    fetch(`https://west.albion-online-data.com/api/v2/stats/prices/${item.id}.json`)
-      .then((res) => res.json())
-      .then((data) => {
-        const porCiudad = {};
-        data.forEach((entry) => {
-          const ciudad = entry.city;
-          if (!porCiudad[ciudad]) porCiudad[ciudad] = {};
-          porCiudad[ciudad] = {
-            sell: entry.sell_price_min,
-            buy: entry.buy_price_max,
-          };
-        });
-        setPrecios(porCiudad);
-        console.log('📊 Precios por ciudad:', porCiudad);
-      })
-      .catch((err) => {
-        console.error('❌ Error al obtener precios:', err);
-      })
-      .finally(() => {
-        setLoading(false);
-      });
+    setMarketData(null);
+    console.log('🟢 Item seleccionado:', item.nombre);
   };
 
   return (
-    <div className={styles.container}>
-      {/* 🔍 Buscador */}
-      <div className={styles.searchPanel}>
-        <h1>📦 Buscador de Ítems</h1>
+    <div className="flex flex-col md:flex-row p-4 gap-4 min-h-screen bg-[#1a1a1a] text-white">
+      {/* Panel de búsqueda */}
+      <div className="md:w-1/3">
+        <h1 className="text-xl font-bold mb-4">🔎 Buscar ítem</h1>
         <input
           type="text"
-          placeholder="Ej: espada, hacha, montura..."
+          placeholder="Ej: espada, hacha, capa, montura..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          className={styles.searchInput}
+          className="w-full p-2 mb-4 rounded text-black"
         />
-
-        <div className={styles.itemsGrid}>
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-[70vh] overflow-y-auto">
           {filteredItems.map((item) => (
             <div
               key={item.id}
               onClick={() => handleClick(item)}
-              className={styles.itemCard}
+              className="bg-[#2b2b2b] hover:bg-[#3a3a3a] p-2 rounded cursor-pointer flex flex-col items-center text-center"
             >
               <img
                 src={item.imagen}
                 alt={item.nombre}
-                onError={(e) => (e.target.src = '/no-img.png')}
+                className="w-12 h-12"
+                onError={(e) => {
+                  e.target.src = '/no-img.png';
+                }}
               />
-              <p>{item.nombre}</p>
+              <span className="text-sm mt-1">{item.nombre}</span>
             </div>
           ))}
         </div>
       </div>
 
-      {/* 📈 Resultados */}
-      <div className={styles.resultPanel}>
+      {/* Panel de resultados */}
+      <div className="md:w-2/3">
         {selectedItem && (
-          <div className={styles.resultBox}>
-            <h2>💰 Resultados para: {selectedItem.nombre}</h2>
-            {loading && <p>⏳ Cargando precios...</p>}
-            {!loading && precios && (
-              <table className={styles.priceTable}>
-                <thead>
-                  <tr>
-                    <th>Ciudad</th>
-                    <th>🟢 Compra</th>
-                    <th>🔴 Venta</th>
-                    <th>📈 Ganancia</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {[
-                    'Bridgewatch',
-                    'Caerleon',
-                    'Fort Sterling',
-                    'Lymhurst',
-                    'Martlock',
-                    'Thetford',
-                    'Brecilien',
-                  ].map((ciudad) => {
-                    const datos = precios[ciudad] || {};
-                    const buy = datos.buy || 0;
-                    const sell = datos.sell || 0;
-                    const ganancia = sell && buy ? sell - buy : 0;
-                    return (
-                      <tr key={ciudad}>
-                        <td>{ciudad}</td>
-                        <td>{buy > 0 ? `${buy.toLocaleString()} 🪙` : '❌'}</td>
-                        <td>{sell > 0 ? `${sell.toLocaleString()} 🪙` : '❌'}</td>
-                        <td>{ganancia > 0 ? `${ganancia.toLocaleString()} 🟢` : '—'}</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+          <div>
+            <h2 className="text-xl font-bold mb-2">
+              📊 Precios de: <span className="text-yellow-400">{selectedItem.nombre}</span>
+            </h2>
+            {loadingData ? (
+              <p className="text-gray-400">Cargando datos del mercado...</p>
+            ) : marketData && marketData.length > 0 ? (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm text-left border mt-2">
+                  <thead>
+                    <tr className="bg-gray-800 text-white">
+                      <th className="px-2 py-1 border">Ciudad</th>
+                      <th className="px-2 py-1 border">Precio Venta</th>
+                      <th className="px-2 py-1 border">Precio Compra</th>
+                      <th className="px-2 py-1 border">Ganancia</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {['Bridgewatch', 'Martlock', 'Lymhurst', 'Thetford', 'FortSterling', 'Caerleon', 'Brecilien'].map((city) => {
+                      const ciudadData = marketData.find((entry) => entry.city === city);
+                      const sell = ciudadData?.sell_price_min || 0;
+                      const buy = ciudadData?.buy_price_max || 0;
+                      const diff = sell && buy ? sell - buy : 0;
+
+                      return (
+                        <tr key={city} className="border-b">
+                          <td className="px-2 py-1 border">{city}</td>
+                          <td className="px-2 py-1 border text-green-400">
+                            {sell > 0 ? sell.toLocaleString() : '—'}
+                          </td>
+                          <td className="px-2 py-1 border text-red-400">
+                            {buy > 0 ? buy.toLocaleString() : '—'}
+                          </td>
+                          <td className="px-2 py-1 border text-yellow-300">
+                            {diff > 0 ? `+${diff.toLocaleString()}` : '—'}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <p className="text-gray-400">No hay datos disponibles para este ítem.</p>
             )}
           </div>
         )}
       </div>
     </div>
   );
-}
+        }

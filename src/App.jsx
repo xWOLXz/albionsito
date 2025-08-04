@@ -1,90 +1,128 @@
-// pages/market.js
-import { useState, useEffect } from 'react';
-import Image from 'next/image';
+import React, { useEffect, useState } from "react";
+import "./App.css";
 
-export default function Market() {
+const backendURL = "https://albionsito-backend.onrender.com";
+const itemsJSONUrl = "/items.json";
+
+export default function App() {
   const [items, setItems] = useState([]);
-  const [search, setSearch] = useState('');
   const [filteredItems, setFilteredItems] = useState([]);
+  const [search, setSearch] = useState("");
+  const [selectedItem, setSelectedItem] = useState(null);
+  const [prices, setPrices] = useState([]);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    fetch('/items.json')
+    fetch(itemsJSONUrl)
       .then((res) => res.json())
-      .then((data) => {
-        setItems(data);
-        console.log('📦 Items cargados:', data.length);
-      })
-      .catch((err) => console.error('Error al cargar items.json:', err));
+      .then(setItems)
+      .catch(() => {
+        fetch(`${backendURL}/items`)
+          .then((res) => res.json())
+          .then(setItems)
+          .catch(() => setItems([]));
+      });
   }, []);
 
   useEffect(() => {
-    const timeout = setTimeout(() => {
-      const term = search.toLowerCase();
-      const filtered = items.filter((item) => {
-        const nameES = item?.LocalizedNames?.['ES-ES'] || '';
-        return nameES.toLowerCase().includes(term);
-      });
-      setFilteredItems(filtered);
-      console.log('🔍 Buscando:', search);
-      console.log('📊 Resultados encontrados:', filtered.length);
-    }, 200);
-
-    return () => clearTimeout(timeout);
+    const filtered = items.filter((item) =>
+      item.name?.toLowerCase().includes(search.toLowerCase())
+    );
+    setFilteredItems(filtered);
   }, [search, items]);
 
   const handleItemClick = (item) => {
-    const id = item.UniqueName;
-    const name = item?.LocalizedNames?.['ES-ES'] || 'Sin nombre';
-    const imageUrl = `https://render.albiononline.com/v1/item/${id}.png`;
-    const selected = { id, nombre: name, imagen: imageUrl };
-    console.log('📌 Ítem seleccionado:', selected);
-    alert(`ID del ítem: ${id}`);
+    setSelectedItem(item);
+    setLoading(true);
+    fetch(`${backendURL}/prices/${item.id}`)
+      .then((res) => res.json())
+      .then((data) => {
+        setPrices(data);
+        setLoading(false);
+      })
+      .catch(() => setPrices([]));
   };
 
   return (
-    <div className="p-4 bg-black min-h-screen text-white">
-      <h1 className="text-2xl font-bold mb-4 text-center">
-        🔍 Buscar Ítem (desde items.json)
-      </h1>
-
-      <div className="flex justify-center mb-6">
+    <div style={{ display: "flex", padding: "1rem" }}>
+      {/* Columna izquierda */}
+      <div style={{ width: "30%", paddingRight: "1rem" }}>
+        <h1>
+          <img
+            src="/favicon.ico"
+            alt="Albionsito"
+            style={{ width: 32, verticalAlign: "middle", marginRight: 10 }}
+          />
+          Mercado
+        </h1>
         <input
           type="text"
-          placeholder="Buscar por nombre en español..."
-          className="p-2 rounded-md text-black w-full max-w-md"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
+          placeholder="Buscar ítem..."
+          style={{ width: "100%", marginBottom: "10px" }}
         />
-      </div>
-
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-        {filteredItems.map((item) => {
-          const id = item.UniqueName;
-          const name = item?.LocalizedNames?.['ES-ES'] || 'Sin nombre';
-          const imageUrl = `https://render.albiononline.com/v1/item/${id}.png`;
-
-          return (
-            <div
-              key={id}
-              className="bg-zinc-900 p-2 rounded-xl hover:scale-105 transition cursor-pointer shadow-md"
-              onClick={() => handleItemClick(item)}
-            >
-              <Image
-                src={imageUrl}
-                alt={name}
-                width={80}
-                height={80}
-                className="mx-auto rounded"
-              />
-              <p className="text-center text-sm mt-2">{name}</p>
+        <div style={{ maxHeight: "80vh", overflowY: "auto" }}>
+          {filteredItems.map((item) => (
+            <div key={item.id}>
+              <button
+                onClick={() => handleItemClick(item)}
+                style={{ display: "flex", alignItems: "center", width: "100%" }}
+              >
+                <img
+                  src={`https://render.albiononline.com/v1/item/${item.id}.png`}
+                  alt={item.name}
+                  style={{ width: 30, height: 30, marginRight: 10 }}
+                />
+                {item.name}
+              </button>
             </div>
-          );
-        })}
+          ))}
+        </div>
       </div>
 
-      {filteredItems.length === 0 && search.trim() !== '' && (
-        <p className="text-center text-zinc-400 mt-10">❌ No se encontraron ítems con ese nombre.</p>
-      )}
+      {/* Columna derecha */}
+      <div style={{ width: "70%" }}>
+        {selectedItem ? (
+          <>
+            <h2>
+              Resultados para:{" "}
+              <img
+                src={`https://render.albiononline.com/v1/item/${selectedItem.id}.png`}
+                alt={selectedItem.name}
+                style={{ width: 30, verticalAlign: "middle", marginRight: 10 }}
+              />
+              {selectedItem.name}
+            </h2>
+            {loading ? (
+              <p>Cargando precios...</p>
+            ) : (
+              <table border="1" cellPadding="6">
+                <thead>
+                  <tr>
+                    <th>Ciudad</th>
+                    <th>Calidad</th>
+                    <th>Venta ↑</th>
+                    <th>Compra ↑</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {prices.map((p, i) => (
+                    <tr key={i}>
+                      <td>{p.city}</td>
+                      <td>{p.quality}</td>
+                      <td>{p.sell_price_min}</td>
+                      <td>{p.buy_price_max}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </>
+        ) : (
+          <p>Selecciona un item para ver precios.</p>
+        )}
+      </div>
     </div>
   );
 }

@@ -76,7 +76,7 @@ function App() {
 
   const filteredItems = itemsData.filter((item) => {
   const info = allItemsInfo.find((i) => i.UniqueName === item.item_id);
-  const name = info?.LocalizedNames?.["ES-ES"]?.toLowerCase() || item.item_id;
+  const name = info?.LocalizedNames?.["ES-ES"] || item.item_id;
   return nombre.includes(searchTerm.toLowerCase());
   });
 

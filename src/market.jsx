@@ -18,7 +18,7 @@ function Market() {
       .catch((error) => console.error('❌ Error cargando items.json:', error));
   }, []);
 
-  // Filtrar ítems al escribir en el buscador (con logs)
+  // Filtrar ítems al escribir en el buscador (con nombre en español)
   useEffect(() => {
     console.log('🔍 Búsqueda:', search);
 
@@ -29,11 +29,13 @@ function Market() {
     }
 
     const resultados = itemsData.filter((item) => {
-      const nombre = item.name?.toLowerCase() || '';
-      const coincide = nombre.includes(search.toLowerCase());
+      const nombreES = item.localizedNames?.["ES-ES"]?.toLowerCase() || '';
+      const coincide = nombreES.includes(search.toLowerCase());
+
       if (coincide) {
-        console.log('✅ Coincide:', item.name);
+        console.log('✅ Coincide:', nombreES);
       }
+
       return coincide;
     });
 
@@ -103,13 +105,13 @@ function Market() {
           : null;
 
       if (ganancia !== null) {
-        console.log(`📊 ${item.name} — Compra: ${mejorVenta?.price}, Venta: ${mejorCompra?.price}, Ganancia: ${ganancia}`);
+        console.log(`📊 ${item.localizedNames?.["ES-ES"]} — Compra: ${mejorVenta?.price}, Venta: ${mejorCompra?.price}, Ganancia: ${ganancia}`);
       }
 
       return {
         id: item.id,
-        name: item.name,
-        icon: item.icon,
+        name: item.localizedNames?.["ES-ES"] || item.id,
+        icon: item.imagen || item.icon || item.id + '.png',
         compra: mejorVenta,
         venta: mejorCompra,
         ganancia,
@@ -165,7 +167,7 @@ function Market() {
               <tr key={item.id}>
                 <td>
                   <img
-                    src={`https://render.albiononline.com/v1/item/${item.icon}`}
+                    src={item.icon}
                     alt={item.name}
                     width="40"
                     height="40"

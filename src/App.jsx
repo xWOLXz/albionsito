@@ -68,7 +68,7 @@ const App = () => {
                   : 0,
             };
           })
-          .filter((item) => item.profit > 0)
+          // .filter((item) => item.profit > 0)
           .sort((a, b) => b.profit - a.profit)
           .slice(0, 30);
 

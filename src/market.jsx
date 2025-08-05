@@ -15,15 +15,17 @@ function Market() {
       .catch((error) => console.error('Error cargando items.json:', error));
   }, []);
 
-  // Filtrar ítems al escribir en el buscador
+  // Filtrar ítems al escribir en el buscador (CORREGIDO AQUÍ)
   useEffect(() => {
     if (search.trim().length < 3) {
       setFilteredItems([]);
       return;
     }
 
-    const resultados = itemsData.filter((item) =>
-      item.name.toLowerCase().includes(search.toLowerCase())
+    const resultados = itemsData.filter(
+      (item) =>
+        item.name &&
+        item.name.toLowerCase().includes(search.toLowerCase())
     );
     setFilteredItems(resultados);
   }, [search, itemsData]);

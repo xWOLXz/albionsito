@@ -88,8 +88,6 @@ function Market() {
 
     const datosItem = backendData.filter((entry) => entry.item_id === itemId);
 
-    console.log('📦', entry.item_id, 'en', entry.city, '→ venta:', entry.sell_price_min, 'compra:', entry.buy_price_max);
-
     datosItem.forEach((entry) => {
       console.log('📦', entry.item_id, 'en', entry.city, '-> venta:', entry.sell_price_min, 'compra:', entry.buy_price_max);
       if (entry.sell_price_min > 0) {

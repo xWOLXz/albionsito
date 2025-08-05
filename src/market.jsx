@@ -18,7 +18,7 @@ function Market() {
       .catch((error) => console.error('❌ Error cargando items.json:', error));
   }, []);
 
-  // Filtrar ítems al escribir en el buscador (con nombre en español)
+  // Filtrar ítems al escribir en el buscador
   useEffect(() => {
     console.log('🔍 Búsqueda:', search);
 
@@ -29,7 +29,7 @@ function Market() {
     }
 
     const resultados = itemsData.filter((item) => {
-      const nombreES = item.localizedNames?.["ES-ES"]?.toLowerCase() || '';
+      const nombreES = item.nombre?.toLowerCase() || '';
       const coincide = nombreES.includes(search.toLowerCase());
 
       if (coincide) {
@@ -105,12 +105,12 @@ function Market() {
           : null;
 
       if (ganancia !== null) {
-        console.log(`📊 ${item.localizedNames?.["ES-ES"]} — Compra: ${mejorVenta?.price}, Venta: ${mejorCompra?.price}, Ganancia: ${ganancia}`);
+        console.log(`📊 ${item.nombre} — Compra: ${mejorVenta?.price}, Venta: ${mejorCompra?.price}, Ganancia: ${ganancia}`);
       }
 
       return {
         id: item.id,
-        name: item.localizedNames?.["ES-ES"] || item.id,
+        name: item.nombre || item.id,
         icon: item.imagen || item.icon || item.id + '.png',
         compra: mejorVenta,
         venta: mejorCompra,

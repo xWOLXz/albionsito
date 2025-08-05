@@ -89,9 +89,9 @@ function Market() {
 
   // ⚠️ Usamos startsWith para incluir encantados como @1, @2, etc.
   const datosItem = backendData.filter((entry) => {
-  const entryId = entry.item_id?.toLowerCase().split('@')[0];
-  const baseId = itemId.toLowerCase().split('@')[0];
-  return entryId && entryId.startsWith(baseId);
+  const entryId = entry.item_id?.toLowerCase().split('@')[0].split('_LEVEL')[0];
+  const baseId = itemId.toLowerCase().split('@')[0].split('_LEVEL')[0];
+  return entryId === baseId;
   });
 
   console.log(`📦 Procesando: ${itemId} - Coincidencias: ${datosItem.length}`);

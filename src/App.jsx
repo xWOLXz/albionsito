@@ -12,7 +12,7 @@ const App = () => {
       setLoading(true);
       try {
         const [marketRes, infoRes] = await Promise.all([
-          axios.get("https://west.albion-online-data.com/api/v2/stats/Prices?locations=Bridgewatch,Martlock,Lymhurst,Thetford,FortSterling&qualities=1"),
+          axios.get(`https://west.albion-online-data.com/api/v2/stats/Prices/${itemId}?locations=Bridgewatch,Martlock,Caerleon,Brecilien,Lymhurst,Thetford,FortSterling&qualities=1`)
           axios.get("/items.json"),
         ]);
 

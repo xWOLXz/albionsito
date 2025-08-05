@@ -89,6 +89,7 @@ function Market() {
     const datosItem = backendData.filter((entry) => entry.item_id === itemId);
 
     datosItem.forEach((entry) => {
+      console.log('📦', entry.item_id, 'en', entry.city, '-> venta:', entry.sell_price_min, 'compra:', entry.buy_price_max);
       if (entry.sell_price_min > 0) {
         porCiudad[entry.city]?.ventas.push(entry.sell_price_min);
       }

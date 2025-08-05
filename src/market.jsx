@@ -18,32 +18,22 @@ function Market() {
       .catch((error) => console.error('❌ Error cargando items.json:', error));
   }, []);
 
-  // Filtrar por nombre en español
+  // Filtrar ítems por nombre en español
   useEffect(() => {
-    console.log('🔍 Búsqueda:', search);
-
     if (search.trim().length < 3) {
-      console.log('⛔ Búsqueda muy corta (<3 caracteres)');
       setFilteredItems([]);
       return;
     }
 
     const resultados = itemsData.filter((item) => {
       const nombreES = item.nombre?.toLowerCase() || '';
-      const coincide = nombreES.includes(search.toLowerCase());
-
-      if (coincide) {
-        console.log('✅ Coincide:', nombreES);
-      }
-
-      return coincide;
+      return nombreES.includes(search.toLowerCase());
     });
 
-    console.log(`📦 Ítems filtrados: ${resultados.length}`);
     setFilteredItems(resultados);
   }, [search, itemsData]);
 
-  // Traer precios de la API por item_id
+  // Obtener precios desde el backend
   useEffect(() => {
     if (filteredItems.length === 0) {
       setBackendData([]);
@@ -54,10 +44,8 @@ function Market() {
       setLoading(true);
       try {
         const ids = filteredItems.map((item) => item.id).join(',');
-        console.log('🌐 Solicitando precios para IDs:', ids);
         const res = await fetch(`https://albionsito-backend.onrender.com/items?ids=${ids}`);
         const data = await res.json();
-        console.log('✅ Precios recibidos:', data.length);
         setBackendData(data);
       } catch (error) {
         console.error('❌ Error al obtener precios:', error);
@@ -68,6 +56,20 @@ function Market() {
 
     fetchData();
   }, [filteredItems]);
+
+  // Combinar datos filtrados con sus precios
+  const itemsConPrecios = filteredItems.flatMap((item) => {
+    return backendData
+      .filter((entry) => entry.item_id === item.id)
+      .map((entry) => ({
+        id: item.id,
+        nombre: item.nombre,
+        imagen: item.imagen || '/no-img.png',
+        ciudad: entry.city,
+        buy_price: entry.buy_price_max,
+        sell_price: entry.sell_price_min,
+      }));
+  });
 
   return (
     <div style={{ padding: '1rem' }}>
@@ -87,47 +89,44 @@ function Market() {
         }}
       />
 
-      {loading && <p>Cargando precios...</p>}
+      {loading && <p>🔄 Cargando precios...</p>}
 
-      {!loading && backendData.length === 0 && search.length >= 3 && (
+      {!loading && itemsConPrecios.length === 0 && search.length >= 3 && (
         <p>No se encontraron resultados.</p>
       )}
 
-      {backendData.length > 0 && (
+      {itemsConPrecios.length > 0 && (
         <table style={{ width: '100%', marginTop: '1rem', borderCollapse: 'collapse' }}>
           <thead>
             <tr>
               <th>Ícono</th>
               <th>Nombre</th>
-              <th>Precio de Compra (Max)</th>
-              <th>Precio de Venta (Min)</th>
+              <th>Compra (max)</th>
+              <th>Venta (min)</th>
               <th>Ciudad</th>
             </tr>
           </thead>
           <tbody>
-            {filteredItems.map((item) => {
-              const precios = backendData.filter((entry) => entry.item_id === item.id);
-              return precios.map((entry, i) => (
-                <tr key={`${item.id}-${entry.city}-${i}`}>
-                  <td>
-                    <img
-                      src={item.imagen || '/no-img.png'}
-                      alt={item.nombre}
-                      width="40"
-                      height="40"
-                      onError={(e) => {
-                        e.target.onerror = null;
-                        e.target.src = '/no-img.png';
-                      }}
-                    />
-                  </td>
-                  <td>{item.nombre}</td>
-                  <td>{entry.buy_price_max.toLocaleString()} 🪙</td>
-                  <td>{entry.sell_price_min.toLocaleString()} 🪙</td>
-                  <td>{entry.city}</td>
-                </tr>
-              ));
-            })}
+            {itemsConPrecios.map((item, index) => (
+              <tr key={`${item.id}-${item.ciudad}-${index}`}>
+                <td>
+                  <img
+                    src={item.imagen}
+                    alt={item.nombre}
+                    width="40"
+                    height="40"
+                    onError={(e) => {
+                      e.target.onerror = null;
+                      e.target.src = '/no-img.png';
+                    }}
+                  />
+                </td>
+                <td>{item.nombre}</td>
+                <td>{item.buy_price.toLocaleString()} 🪙</td>
+                <td>{item.sell_price.toLocaleString()} 🪙</td>
+                <td>{item.ciudad}</td>
+              </tr>
+            ))}
           </tbody>
         </table>
       )}

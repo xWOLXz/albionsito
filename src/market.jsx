@@ -1,120 +1,138 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 
-const Market = () => {
-  const [itemsData, setItemsData] = useState([]);
-  const [allItemsInfo, setAllItemsInfo] = useState([]);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [loading, setLoading] = useState(false);
+const MARKET_API = 'https://albionsito-backend.onrender.com/items';
+const ITEMS_JSON = '/items.json';
 
-  // Cargar items.json (nombres e íconos)
+const formatGold = (value) => {
+  return value.toLocaleString('es-CO');
+};
+
+const MarketGeneral = () => {
+  const [marketData, setMarketData] = useState([]);
+  const [itemsInfo, setItemsInfo] = useState({});
+  const [searchTerm, setSearchTerm] = useState('');
+
   useEffect(() => {
-    const fetchItemsInfo = async () => {
+    const fetchData = async () => {
       try {
-        const response = await fetch('/items.json');
-        const data = await response.json();
-        setAllItemsInfo(data);
+        const [marketRes, itemsRes] = await Promise.all([
+          axios.get(MARKET_API),
+          axios.get(ITEMS_JSON),
+        ]);
+
+        const groupedItems = {};
+
+        // Agrupar por item_id para encontrar el mejor precio de compra y venta
+        marketRes.data.forEach((entry) => {
+          const { item_id, city, buy_price_min, sell_price_max } = entry;
+          if (!groupedItems[item_id]) {
+            groupedItems[item_id] = {
+              item_id,
+              buy: { price: buy_price_min, city },
+              sell: { price: sell_price_max, city },
+            };
+          } else {
+            if (buy_price_min > 0 && buy_price_min < groupedItems[item_id].buy.price) {
+              groupedItems[item_id].buy = { price: buy_price_min, city };
+            }
+            if (sell_price_max > groupedItems[item_id].sell.price) {
+              groupedItems[item_id].sell = { price: sell_price_max, city };
+            }
+          }
+        });
+
+        // Transformar a array y calcular ganancia
+        const finalItems = Object.values(groupedItems)
+          .filter((item) => item.buy.price > 0 && item.sell.price > 0)
+          .map((item) => {
+            const info = itemsRes.data[item.item_id] || {};
+            const name = info.name || item.item_id;
+            const icon = info.icon || null;
+            const profit = item.sell.price - item.buy.price;
+            return {
+              ...item,
+              name,
+              icon,
+              profit,
+            };
+          })
+          .sort((a, b) => b.profit - a.profit); // ordenar por ganancia
+
+        setItemsInfo(itemsRes.data);
+        setMarketData(finalItems);
       } catch (error) {
-        console.error('Error cargando items.json:', error);
+        console.error('Error cargando los datos del mercado:', error);
       }
     };
 
-    fetchItemsInfo();
+    fetchData();
   }, []);
 
-  // Buscar precios solo al escribir
-  useEffect(() => {
-    const fetchMarketData = async () => {
-      if (searchTerm.trim() === '') {
-        setItemsData([]);
-        return;
-      }
-
-      setLoading(true);
-
-      const matchedItem = allItemsInfo.find((item) => {
-        const nombre = item?.LocalizedNames?.['ES-ES']?.toLowerCase() || '';
-        return nombre.includes(searchTerm.toLowerCase());
-      });
-
-      if (!matchedItem) {
-        setItemsData([]);
-        setLoading(false);
-        return;
-      }
-
-      const itemId = matchedItem.UniqueName;
-
-      try {
-        const response = await axios.get(
-          `https://west.albion-online-data.com/api/v2/stats/prices/${itemId}?locations=Caerleon,Bridgewatch,Martlock,FortSterling,Lymhurst,Thetford`
-        );
-        const filtered = response.data.filter((item) => item.sell_price_min > 0 || item.buy_price_max > 0);
-        setItemsData(filtered);
-      } catch (error) {
-        console.error('Error al obtener datos del market:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    const delayDebounce = setTimeout(fetchMarketData, 700);
-    return () => clearTimeout(delayDebounce);
-  }, [searchTerm, allItemsInfo]);
+  const filteredItems = marketData.filter((item) =>
+    item.name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   return (
-    <div className="p-4 max-w-4xl mx-auto">
+    <div className="p-4 max-w-6xl mx-auto">
       <h1 className="text-3xl font-bold text-center mb-4 text-white">🛒 Market General</h1>
       <input
         type="text"
-        placeholder="Buscar ítem en español..."
-        className="w-full p-3 rounded-xl text-black mb-6"
+        placeholder="🔍 Buscar ítem..."
+        className="w-full p-2 mb-4 border border-gray-300 rounded text-black"
         value={searchTerm}
         onChange={(e) => setSearchTerm(e.target.value)}
       />
 
-      {loading && (
-        <div className="text-center text-white mb-4">
-          <img src="/albion-loader.gif" alt="Cargando..." className="mx-auto w-12" />
-          <p>Cargando precios...</p>
-        </div>
-      )}
-
-      {!loading && itemsData.length > 0 && (
-        <div className="space-y-4">
-          {itemsData.map((item, index) => {
-            const info = allItemsInfo.find((i) => i.UniqueName === item.item_id);
-            const nombre = info?.LocalizedNames?.['ES-ES'] || item.item_id;
-            const imagen = info?.ShopImage || item.item_id;
-
-            return (
-              <div
-                key={index}
-                className="bg-zinc-800 p-4 rounded-xl flex items-center justify-between shadow-md"
-              >
-                <div className="flex items-center gap-4">
-                  <img
-                    src={`https://render.albiononline.com/v1/item/${imagen}.png`}
-                    alt={nombre}
-                    className="w-14 h-14"
-                  />
-                  <span className="text-white font-semibold">{nombre}</span>
-                </div>
-                <div className="text-right text-white">
-                  <p>🛒 Mín Venta: {item.sell_price_min.toLocaleString()} 🏙 {item.city}</p>
-                  <p>💰 Máx Compra: {item.buy_price_max.toLocaleString()} 🏙 {item.city}</p>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      {!loading && searchTerm.trim() !== '' && itemsData.length === 0 && (
-        <p className="text-center text-gray-400">No se encontraron resultados.</p>
+      {filteredItems.length === 0 ? (
+        <p className="text-white text-center mt-4">No se encontraron resultados.</p>
+      ) : (
+        <table className="w-full table-auto border border-gray-700 text-sm bg-white rounded overflow-hidden">
+          <thead className="bg-gray-800 text-white">
+            <tr>
+              <th className="p-2">Ícono</th>
+              <th className="p-2">Nombre</th>
+              <th className="p-2">Compra (↑)</th>
+              <th className="p-2">Ciudad</th>
+              <th className="p-2">Venta (↓)</th>
+              <th className="p-2">Ciudad</th>
+              <th className="p-2">Ganancia</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredItems.map((item) => (
+              <tr key={item.item_id} className="text-center border-t border-gray-300">
+                <td className="p-2">
+                  {item.icon ? (
+                    <img
+                      src={`https://render.albiononline.com/v1/item/${item.icon}`}
+                      alt={item.name}
+                      className="w-8 h-8 inline-block"
+                    />
+                  ) : (
+                    '❌'
+                  )}
+                </td>
+                <td className="p-2">{item.name}</td>
+                <td className="p-2 text-yellow-600 font-semibold">
+                  {formatGold(item.buy.price)} 🪙
+                </td>
+                <td className="p-2">{item.buy.city}</td>
+                <td className="p-2 text-yellow-600 font-semibold">
+                  {formatGold(item.sell.price)} 🪙
+                </td>
+                <td className="p-2">{item.sell.city}</td>
+                <td className={`p-2 font-bold ${item.profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  {item.profit >= 0 ? '+' : ''}
+                  {formatGold(item.profit)} 🪙
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       )}
     </div>
   );
 };
 
-export default Market;
+export default MarketGeneral;

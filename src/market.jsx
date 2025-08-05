@@ -16,42 +16,58 @@ function Market() {
   const [filteredItems, setFilteredItems] = useState([]);
   const [backendData, setBackendData] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [debounceTimeout, setDebounceTimeout] = useState(null);
 
+  // ✅ Cargar items base
   useEffect(() => {
     fetch('/items.json')
       .then((res) => res.json())
       .then((data) => {
         console.log('✅ items.json cargado:', data.length, 'ítems');
         setItemsData(data);
-        console.log("🔍 backendData recibido:", data);
       })
       .catch((error) => console.error('❌ Error cargando items.json:', error));
   }, []);
 
+  // ✅ Filtro con debounce (3 segundos después de dejar de escribir)
   useEffect(() => {
-    console.log('🔍 Búsqueda:', search);
+    if (debounceTimeout) clearTimeout(debounceTimeout);
 
-    if (search.trim().length < 3) {
-      console.log('⛔ Búsqueda muy corta (<3 caracteres)');
-      setFilteredItems([]);
-      return;
-    }
+    const timeout = setTimeout(() => {
+      console.log('🔍 Búsqueda:', search);
 
-    const resultados = itemsData.filter((item) => {
-      const nombreES = item.nombre?.toLowerCase() || '';
-      const coincide = nombreES.includes(search.toLowerCase());
-
-      if (coincide) {
-        console.log('✅ Coincide:', nombreES);
+      if (search.trim().length < 3) {
+        console.log('⛔ Búsqueda muy corta (<3 caracteres)');
+        setFilteredItems([]);
+        return;
       }
 
-      return coincide;
-    });
+      const lowerSearch = search.toLowerCase();
+      const yaMostrados = new Set();
+      const resultado = itemsData.filter((item) => {
+        const nombreES = item.nombre?.toLowerCase() || '';
+        const coincide = nombreES.includes(lowerSearch);
 
-    console.log(`📦 Ítems filtrados: ${resultados.length}`);
-    setFilteredItems(resultados);
+        const baseId = item.id?.split('@')[0]?.split('_LEVEL')[0];
+
+        if (coincide && !yaMostrados.has(baseId)) {
+          yaMostrados.add(baseId);
+          console.log('✅ Coincide:', nombreES);
+          return true;
+        }
+
+        return false;
+      });
+
+      console.log(`📦 Ítems filtrados: ${resultado.length}`);
+      setFilteredItems(resultado);
+    }, 3000);
+
+    setDebounceTimeout(timeout);
+    return () => clearTimeout(timeout);
   }, [search, itemsData]);
 
+  // ✅ Llamar a la API con los ítems filtrados
   useEffect(() => {
     if (filteredItems.length === 0) {
       setBackendData([]);
@@ -66,6 +82,9 @@ function Market() {
         const res = await fetch(`https://albionsito-backend.onrender.com/items?ids=${ids}`);
         const data = await res.json();
         console.log('✅ Precios recibidos:', data.length);
+        data.forEach((entry) => {
+          console.log('📦 Precio:', entry.item_id, '-', entry.city, 'venta:', entry.sell_price_min, 'compra:', entry.buy_price_max);
+        });
         setBackendData(data);
       } catch (error) {
         console.error('❌ Error al obtener precios:', error);
@@ -77,53 +96,35 @@ function Market() {
     fetchData();
   }, [filteredItems]);
 
-  function procesarPreciosPorCiudad(itemId) {
-  const porCiudad = {};
+  // ✅ Procesar datos por ciudad
+  const procesarPreciosPorCiudad = (itemId) => {
+    const porCiudad = {};
 
-  CIUDADES.forEach(({ name }) => {
-    porCiudad[name] = {
-      ventas: [],
-      compras: [],
-    };
-  });
+    CIUDADES.forEach(({ name }) => {
+      porCiudad[name] = { ventas: [], compras: [] };
+    });
 
-  // ⚠️ Usamos startsWith para incluir encantados como @1, @2, etc.
-  const normalizarId = (id) => {
-  return id.toLowerCase().split('@')[0].split('_LEVEL')[0];
-};
-
-const datosItem = backendData.filter((entry) => {
-  return normalizarId(entry.item_id) === normalizarId(itemId);
-});
-
-  console.log(`📦 Procesando: ${itemId} - Coincidencias: ${datosItem.length}`);
-
-  datosItem.forEach((entry) => {
-    console.log(
-      '🧾', entry.item_id,
-      'en', entry.city,
-      '-> venta:', entry.sell_price_min,
-      'compra:', entry.buy_price_max
+    const normalizarId = (id) => id.toLowerCase().split('@')[0].split('_LEVEL')[0];
+    const datosItem = backendData.filter((entry) =>
+      normalizarId(entry.item_id) === normalizarId(itemId)
     );
 
-    if (entry.sell_price_min > 0) {
-      porCiudad[entry.city]?.ventas.push(entry.sell_price_min);
+    console.log(`📊 Procesando ${itemId} - Coincidencias: ${datosItem.length}`);
+
+    datosItem.forEach((entry) => {
+      if (entry.sell_price_min > 0) porCiudad[entry.city]?.ventas.push(entry.sell_price_min);
+      if (entry.buy_price_max > 0) porCiudad[entry.city]?.compras.push(entry.buy_price_max);
+    });
+
+    for (const ciudad in porCiudad) {
+      porCiudad[ciudad].ventas.sort((a, b) => a - b);
+      porCiudad[ciudad].compras.sort((a, b) => b - a);
     }
 
-    if (entry.buy_price_max > 0) {
-      porCiudad[entry.city]?.compras.push(entry.buy_price_max);
-    }
-  });
-
-  // Ordenar los precios dentro de cada ciudad
-  for (const ciudad in porCiudad) {
-    porCiudad[ciudad].ventas.sort((a, b) => a - b); // menor a mayor
-    porCiudad[ciudad].compras.sort((a, b) => b - a); // mayor a menor
-  }
-
-  return porCiudad;
+    return porCiudad;
   };
 
+  // ✅ Render
   return (
     <div style={{ padding: '1rem' }}>
       <h1>🛒 Market General</h1>
@@ -143,10 +144,7 @@ const datosItem = backendData.filter((entry) => {
       />
 
       {loading && <p>Cargando precios...</p>}
-
-      {!loading && filteredItems.length === 0 && search.length >= 3 && (
-        <p>No se encontraron resultados.</p>
-      )}
+      {!loading && filteredItems.length === 0 && search.length >= 3 && <p>No se encontraron resultados.</p>}
 
       {!loading && filteredItems.length > 0 && (
         <div>

@@ -85,9 +85,11 @@ function App() {
 
   const calidadTexto = ['I', 'II', 'III', 'IV', 'V'];
 
-  const resultadosFiltrados = data.filter((item) =>
-    getNombreItem(item.item_id).toLowerCase().includes(search.toLowerCase())
-  );
+  const resultadosFiltrados = search.trim()
+    ? data.filter((item) =>
+        getNombreItem(item.item_id).toLowerCase().includes(search.toLowerCase())
+      )
+    : [];
 
   return (
     <div className="App">
@@ -110,39 +112,43 @@ function App() {
           <img src="/albion-loader.gif" alt="Cargando..." />
         </div>
       ) : (
-        <table>
-          <thead>
-            <tr>
-              <th>Ítem</th>
-              <th>Calidad</th>
-              <th>Venta ↑</th>
-              <th>Ciudad</th>
-              <th>Compra ↓</th>
-              <th>Ciudad</th>
-              <th>Ganancia 🪙</th>
-            </tr>
-          </thead>
-          <tbody>
-            {resultadosFiltrados.map((item, idx) => (
-              <tr key={idx}>
-                <td>
-                  <img
-                    src={getImagenItem(item.item_id)}
-                    alt={item.item_id}
-                    className="item-icon"
-                  />{' '}
-                  {getNombreItem(item.item_id)}
-                </td>
-                <td>{calidadTexto[item.quality - 1]}</td>
-                <td>{formatearNumero(item.buy_price_max)}</td>
-                <td>{item.buy_city}</td>
-                <td>{formatearNumero(item.sell_price_min)}</td>
-                <td>{item.sell_city}</td>
-                <td><b>{formatearNumero(item.profit)}</b></td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <>
+          {resultadosFiltrados.length > 0 && (
+            <table>
+              <thead>
+                <tr>
+                  <th>Ítem</th>
+                  <th>Calidad</th>
+                  <th>Venta ↑</th>
+                  <th>Ciudad</th>
+                  <th>Compra ↓</th>
+                  <th>Ciudad</th>
+                  <th>Ganancia 🪙</th>
+                </tr>
+              </thead>
+              <tbody>
+                {resultadosFiltrados.map((item, idx) => (
+                  <tr key={idx}>
+                    <td>
+                      <img
+                        src={getImagenItem(item.item_id)}
+                        alt={item.item_id}
+                        className="item-icon"
+                      />{' '}
+                      {getNombreItem(item.item_id)}
+                    </td>
+                    <td>{calidadTexto[item.quality - 1]}</td>
+                    <td>{formatearNumero(item.buy_price_max)}</td>
+                    <td>{item.buy_city}</td>
+                    <td>{formatearNumero(item.sell_price_min)}</td>
+                    <td>{item.sell_city}</td>
+                    <td><b>{formatearNumero(item.profit)}</b></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </>
       )}
     </div>
   );

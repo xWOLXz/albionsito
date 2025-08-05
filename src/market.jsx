@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import Image from 'next/image';
 
 export default function Market() {
   const [items, setItems] = useState([]);
@@ -11,18 +10,15 @@ export default function Market() {
   const fetchItems = async () => {
     setLoading(true);
     try {
-      // Obtener datos desde backend
       const backendRes = await fetch('https://albionsito-backend.onrender.com/items');
       const backendData = await backendRes.json();
       console.log(`🔵 Backend: ${backendData.length} ítems recibidos`);
 
-      // Obtener datos desde API oficial Albion
       const itemIds = backendData.map(item => item.item_id).join(',');
-      const albionAPIRes = await fetch(`https://west.albion-online-data.com/api/v2/stats/prices?ids=${itemIds}&locations=FortSterling,Brecilien,Caerleon,Bridgewatch,Lymhurst,Martlock,Thetford`);
+      const albionAPIRes = await fetch(`https://west.albion-online-data.com/api/v2/stats/prices?ids=${itemIds}&locations=Caerleon,Bridgewatch,Lymhurst,Martlock,Thetford`);
       const albionAPIData = await albionAPIRes.json();
       console.log(`🟡 Albion API: ${albionAPIData.length} precios recibidos`);
 
-      // Convertir API oficial en mapa por item_id
       const albionMap = {};
       albionAPIData.forEach(entry => {
         if (!albionMap[entry.item_id]) {
@@ -34,7 +30,6 @@ export default function Market() {
         }
       });
 
-      // Combinar datos: backend tiene prioridad, si no hay, se usa API oficial
       const combinedItems = [];
       const usadosAPI = [];
 
@@ -80,7 +75,7 @@ export default function Market() {
 
       setFilteredItems(result);
       console.log(`🔍 Búsqueda: "${text}" — Coincidencias: ${result.length}`);
-    }, 3000); // 3 segundos después de escribir
+    }, 3000);
 
     setDebounceTimeout(timeout);
   };
@@ -102,13 +97,13 @@ export default function Market() {
 
       {loading ? (
         <div className="flex justify-center items-center">
-          <Image src="/albion-loader.gif" alt="Cargando" width={64} height={64} />
+          <img src="/albion-loader.gif" alt="Cargando" width={64} height={64} />
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
           {filteredItems.map((item) => (
             <div key={item.item_id} className="bg-gray-900 p-4 rounded-lg shadow text-white flex items-center gap-4">
-              <Image
+              <img
                 src={`https://render.albiononline.com/v1/item/${item.item_id}.png`}
                 alt={item.localized_name}
                 width={64}

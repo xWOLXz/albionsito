@@ -15,7 +15,7 @@ export default function Market() {
       console.log(`🔵 Backend: ${backendData.length} ítems recibidos`);
 
       const itemIds = backendData.map(item => item.item_id).join(',');
-      const albionAPIRes = await fetch(`https://west.albion-online-data.com/api/v2/stats/prices?ids=${itemIds}&locations=Caerleon,Bridgewatch,Lymhurst,Martlock,Thetford`);
+      const albionAPIRes = await fetch(`https://albion-online-data.com/api/v2/stats/prices?ids=${itemIds}&locations=Caerleon,Bridgewatch,Lymhurst,Martlock,Thetford`);
       const albionAPIData = await albionAPIRes.json();
       console.log(`🟡 Albion API: ${albionAPIData.length} precios recibidos`);
 

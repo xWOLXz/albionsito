@@ -76,35 +76,47 @@ function Market() {
     fetchData();
   }, [filteredItems]);
 
-  const procesarPreciosPorCiudad = (itemId) => {
-    const porCiudad = {};
+  function procesarPreciosPorCiudad(itemId) {
+  const porCiudad = {};
 
-    CIUDADES.forEach(({ name }) => {
-      porCiudad[name] = {
-        ventas: [],
-        compras: [],
-      };
-    });
+  CIUDADES.forEach(({ name }) => {
+    porCiudad[name] = {
+      ventas: [],
+      compras: [],
+    };
+  });
 
-    const datosItem = backendData.filter((entry) => entry.item_id === itemId);
+  // ⚠️ Usamos startsWith para incluir encantados como @1, @2, etc.
+  const datosItem = backendData.filter((entry) =>
+    entry.item_id.startsWith(itemId)
+  );
 
-    datosItem.forEach((entry) => {
-      console.log('📦', entry.item_id, 'en', entry.city, '-> venta:', entry.sell_price_min, 'compra:', entry.buy_price_max);
-      if (entry.sell_price_min > 0) {
-        porCiudad[entry.city]?.ventas.push(entry.sell_price_min);
-      }
-      if (entry.buy_price_max > 0) {
-        porCiudad[entry.city]?.compras.push(entry.buy_price_max);
-      }
-    });
+  console.log(`📦 Procesando: ${itemId} - Coincidencias: ${datosItem.length}`);
 
-    // Ordenar los precios dentro de cada ciudad
-    for (const ciudad in porCiudad) {
-      porCiudad[ciudad].ventas.sort((a, b) => a - b); // ascendente
-      porCiudad[ciudad].compras.sort((a, b) => b - a); // descendente
+  datosItem.forEach((entry) => {
+    console.log(
+      '🧾', entry.item_id,
+      'en', entry.city,
+      '-> venta:', entry.sell_price_min,
+      'compra:', entry.buy_price_max
+    );
+
+    if (entry.sell_price_min > 0) {
+      porCiudad[entry.city]?.ventas.push(entry.sell_price_min);
     }
 
-    return porCiudad;
+    if (entry.buy_price_max > 0) {
+      porCiudad[entry.city]?.compras.push(entry.buy_price_max);
+    }
+  });
+
+  // Ordenar los precios dentro de cada ciudad
+  for (const ciudad in porCiudad) {
+    porCiudad[ciudad].ventas.sort((a, b) => a - b); // menor a mayor
+    porCiudad[ciudad].compras.sort((a, b) => b - a); // mayor a menor
+  }
+
+  return porCiudad;
   };
 
   return (

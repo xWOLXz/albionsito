@@ -4,11 +4,16 @@ import './App.css';
 const API_URL = 'https://albionsito-backend.onrender.com/items';
 const ITEMS_JSON_URL = '/items.json';
 
-const ciudades = ['Bridgewatch', 'Martlock', 'Thetford', 'Fort Sterling', 'Lymhurst', 'Caerleon'];
-
-function formatearNumero(numero) {
+const formatearNumero = (numero) => {
   return numero.toLocaleString('es-CO');
-}
+};
+
+const normalizarTexto = (texto) => {
+  return texto
+    .toLowerCase()
+    .normalize('NFD') // elimina tildes
+    .replace(/[\u0300-\u036f]/g, '');
+};
 
 function App() {
   const [data, setData] = useState([]);
@@ -31,8 +36,8 @@ function App() {
 
       market.forEach((entry) => {
         const { item_id, quality, city, sell_price_min, buy_price_max } = entry;
-
         const clave = `${item_id}_${quality}`;
+
         if (!agrupado[clave]) {
           agrupado[clave] = {
             item_id,
@@ -86,9 +91,11 @@ function App() {
   const calidadTexto = ['I', 'II', 'III', 'IV', 'V'];
 
   const resultadosFiltrados = search.trim()
-    ? data.filter((item) =>
-        getNombreItem(item.item_id).toLowerCase().includes(search.toLowerCase())
-      )
+    ? data.filter((item) => {
+        const nombre = normalizarTexto(getNombreItem(item.item_id));
+        const termino = normalizarTexto(search);
+        return nombre.includes(termino);
+      })
     : [];
 
   return (

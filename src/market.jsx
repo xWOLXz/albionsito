@@ -23,6 +23,7 @@ function Market() {
       .then((data) => {
         console.log('✅ items.json cargado:', data.length, 'ítems');
         setItemsData(data);
+        console.log("🔍 backendData recibido:", data);
       })
       .catch((error) => console.error('❌ Error cargando items.json:', error));
   }, []);

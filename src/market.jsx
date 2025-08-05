@@ -88,11 +88,13 @@ function Market() {
   });
 
   // ⚠️ Usamos startsWith para incluir encantados como @1, @2, etc.
-  const datosItem = backendData.filter((entry) => {
-  const entryId = entry.item_id?.toLowerCase().split('@')[0].split('_LEVEL')[0];
-  const baseId = itemId.toLowerCase().split('@')[0].split('_LEVEL')[0];
-  return entryId === baseId;
-  });
+  const normalizarId = (id) => {
+  return id.toLowerCase().split('@')[0].split('_LEVEL')[0];
+};
+
+const datosItem = backendData.filter((entry) => {
+  return normalizarId(entry.item_id) === normalizarId(itemId);
+});
 
   console.log(`📦 Procesando: ${itemId} - Coincidencias: ${datosItem.length}`);
 

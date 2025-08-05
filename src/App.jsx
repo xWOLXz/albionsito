@@ -1,161 +1,146 @@
-import React, { useEffect, useState } from 'react';
-import './App.css';
+// src/App.jsx
+import React, { useEffect, useState } from "react";
+import "./index.css";
 
-const API_URL = 'https://albionsito-backend.onrender.com/items';
-const ITEMS_JSON_URL = '/items.json';
-
-const formatearNumero = (numero) => {
-  return numero.toLocaleString('es-CO');
-};
-
-const normalizarTexto = (texto) => {
-  return texto
-    .toLowerCase()
-    .normalize('NFD') // elimina tildes
-    .replace(/[\u0300-\u036f]/g, '');
-};
+const API_URL = "https://albionsito-backend.onrender.com/items";
+const ITEMS_JSON = "/items.json";
 
 function App() {
-  const [data, setData] = useState([]);
-  const [itemsData, setItemsData] = useState({});
-  const [search, setSearch] = useState('');
-  const [loading, setLoading] = useState(false);
-
-  const cargarDatos = async () => {
-    setLoading(true);
-    try {
-      const [marketRes, itemsRes] = await Promise.all([
-        fetch(API_URL),
-        fetch(ITEMS_JSON_URL),
-      ]);
-
-      const market = await marketRes.json();
-      const items = await itemsRes.json();
-
-      const agrupado = {};
-
-      market.forEach((entry) => {
-        const { item_id, quality, city, sell_price_min, buy_price_max } = entry;
-        const clave = `${item_id}_${quality}`;
-
-        if (!agrupado[clave]) {
-          agrupado[clave] = {
-            item_id,
-            quality,
-            sell_price_min: sell_price_min || 0,
-            sell_city: city,
-            buy_price_max: buy_price_max || 0,
-            buy_city: city,
-          };
-        } else {
-          if (sell_price_min && (!agrupado[clave].sell_price_min || sell_price_min < agrupado[clave].sell_price_min)) {
-            agrupado[clave].sell_price_min = sell_price_min;
-            agrupado[clave].sell_city = city;
-          }
-          if (buy_price_max && buy_price_max > agrupado[clave].buy_price_max) {
-            agrupado[clave].buy_price_max = buy_price_max;
-            agrupado[clave].buy_city = city;
-          }
-        }
-      });
-
-      const lista = Object.values(agrupado)
-        .map((item) => ({
-          ...item,
-          profit: item.buy_price_max - item.sell_price_min,
-        }))
-        .filter((item) => item.sell_price_min > 0 && item.buy_price_max > 0)
-        .sort((a, b) => b.profit - a.profit);
-
-      setItemsData(items);
-      setData(lista);
-    } catch (error) {
-      console.error('Error al cargar datos:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const [itemsData, setItemsData] = useState([]);
+  const [allItemsInfo, setAllItemsInfo] = useState([]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    cargarDatos();
+    const fetchItems = async () => {
+      try {
+        const [pricesRes, infoRes] = await Promise.all([
+          fetch(API_URL),
+          fetch(ITEMS_JSON),
+        ]);
+
+        const prices = await pricesRes.json();
+        const infos = await infoRes.json();
+
+        setAllItemsInfo(infos);
+
+        // Agrupar los precios por item_id y calidad
+        const grouped = {};
+        prices.forEach((entry) => {
+          const key = `${entry.item_id}-${entry.quality}`;
+          if (!grouped[key]) grouped[key] = [];
+          grouped[key].push(entry);
+        });
+
+        // Procesar para obtener info con mayor ganancia
+        const processed = Object.keys(grouped).map((key) => {
+          const [item_id, quality] = key.split("-");
+          const entries = grouped[key];
+
+          let maxSell = { price: 0, city: "" };
+          let minBuy = { price: Infinity, city: "" };
+
+          entries.forEach((e) => {
+            if (e.sell_price_min > maxSell.price) {
+              maxSell = { price: e.sell_price_min, city: e.city };
+            }
+            if (e.buy_price_max < minBuy.price) {
+              minBuy = { price: e.buy_price_max, city: e.city };
+            }
+          });
+
+          const gain = maxSell.price - minBuy.price;
+          return {
+            item_id,
+            quality,
+            sell_price: maxSell.price,
+            sell_city: maxSell.city,
+            buy_price: minBuy.price,
+            buy_city: minBuy.city,
+            gain,
+          };
+        });
+
+        // Ordenar por ganancia
+        processed.sort((a, b) => b.gain - a.gain);
+        setItemsData(processed);
+        setLoading(false);
+      } catch (error) {
+        console.error("Error cargando datos:", error);
+        setLoading(false);
+      }
+    };
+
+    fetchItems();
   }, []);
 
-  const getNombreItem = (itemId) => {
-    return itemsData[itemId]?.name || itemId;
-  };
-
-  const getImagenItem = (itemId) => {
-    return `https://render.albiononline.com/v1/item/${itemId}.png`;
-  };
-
-  const calidadTexto = ['I', 'II', 'III', 'IV', 'V'];
-
-  const resultadosFiltrados = search.trim()
-    ? data.filter((item) => {
-        const nombre = normalizarTexto(getNombreItem(item.item_id));
-        const termino = normalizarTexto(search);
-        return nombre.includes(termino);
-      })
-    : [];
+  const filteredItems = itemsData.filter((item) => {
+    const info = allItemsInfo.find((i) => i.UniqueName === item.item_id);
+    const name = info?.LocalizedNames?."ES-ES"?.toLowerCase() || "";
+    return name.includes(searchTerm.toLowerCase());
+  });
 
   return (
-    <div className="App">
-      <h1>📦 Albionsito <span style={{ color: '#666' }}>Mercado</span></h1>
+    <div className="p-4">
+      <h1 className="text-2xl font-bold mb-4 flex items-center gap-2">
+        <img src="/icon.png" alt="icon" className="w-6 h-6" /> Albionsito Mercado
+      </h1>
 
-      <div className="barra-busqueda">
+      <div className="mb-4 flex items-center gap-2">
         <input
           type="text"
           placeholder="Buscar ítem..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          className="border p-2 rounded"
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
         />
-        <button onClick={cargarDatos} title="Actualizar">
-          🔄
-        </button>
       </div>
 
       {loading ? (
-        <div className="loader-container">
-          <img src="/albion-loader.gif" alt="Cargando..." />
+        <div className="flex justify-center">
+          <img src="/albion-loader.gif" alt="Cargando..." className="w-16 h-16" />
         </div>
       ) : (
-        <>
-          {resultadosFiltrados.length > 0 && (
-            <table>
-              <thead>
-                <tr>
-                  <th>Ítem</th>
-                  <th>Calidad</th>
-                  <th>Venta ↑</th>
-                  <th>Ciudad</th>
-                  <th>Compra ↓</th>
-                  <th>Ciudad</th>
-                  <th>Ganancia 🪙</th>
+        <table className="w-full border-collapse">
+          <thead>
+            <tr className="bg-gray-200">
+              <th className="p-2">Ítem</th>
+              <th className="p-2">Calidad</th>
+              <th className="p-2">Venta</th>
+              <th className="p-2">Ciudad</th>
+              <th className="p-2">Compra</th>
+              <th className="p-2">Ciudad</th>
+              <th className="p-2">Ganancia 🪙</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredItems.map((item, idx) => {
+              const info = allItemsInfo.find((i) => i.UniqueName === item.item_id);
+              const nombre = info?.LocalizedNames?."ES-ES" || item.item_id;
+              const img = info?.ShopImage || item.item_id;
+              return (
+                <tr key={idx} className="text-center border-b">
+                  <td className="p-2 flex items-center gap-2">
+                    <img
+                      src={`https://render.albiononline.com/v1/item/${img}.png`}
+                      alt={nombre}
+                      className="w-10 h-10"
+                    />
+                    {nombre}
+                  </td>
+                  <td>{item.quality}</td>
+                  <td>{item.sell_price.toLocaleString()}</td>
+                  <td>{item.sell_city}</td>
+                  <td>{item.buy_price.toLocaleString()}</td>
+                  <td>{item.buy_city}</td>
+                  <td className="font-bold text-right pr-4">
+                    {item.gain.toLocaleString()}
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {resultadosFiltrados.map((item, idx) => (
-                  <tr key={idx}>
-                    <td>
-                      <img
-                        src={getImagenItem(item.item_id)}
-                        alt={item.item_id}
-                        className="item-icon"
-                      />{' '}
-                      {getNombreItem(item.item_id)}
-                    </td>
-                    <td>{calidadTexto[item.quality - 1]}</td>
-                    <td>{formatearNumero(item.buy_price_max)}</td>
-                    <td>{item.buy_city}</td>
-                    <td>{formatearNumero(item.sell_price_min)}</td>
-                    <td>{item.sell_city}</td>
-                    <td><b>{formatearNumero(item.profit)}</b></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </>
+              );
+            })}
+          </tbody>
+        </table>
       )}
     </div>
   );

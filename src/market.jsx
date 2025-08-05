@@ -90,6 +90,7 @@ function Market() {
   // ⚠️ Usamos startsWith para incluir encantados como @1, @2, etc.
   const datosItem = backendData.filter((entry) =>
     entry.item_id.startsWith(itemId)
+    entry.item_id?.toLowerCase().includes(itemId.toLowerCase())
   );
 
   console.log(`📦 Procesando: ${itemId} - Coincidencias: ${datosItem.length}`);

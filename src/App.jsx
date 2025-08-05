@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
+import "./App.css";
 
 const App = () => {
   const [itemsData, setItemsData] = useState([]);
@@ -12,68 +13,58 @@ const App = () => {
       setLoading(true);
       try {
         const [marketRes, infoRes] = await Promise.all([
-          axios.get(
-            "https://albionsito-backend.onrender.com/items"
-          ),
-          axios.get("/items.json")
+          axios.get("https://albionsito-backend.onrender.com/items"),
+          axios.get("/items.json"),
         ]);
-
         const raw = marketRes.data;
         const allInfo = infoRes.data;
 
+        setAllItemsInfo(allInfo);
+
         const grouped = {};
 
-        for (const item of raw) {
+        raw.forEach((item) => {
           const id = item.item_id;
+
           if (!grouped[id]) {
             grouped[id] = {
               item_id: id,
-              sell_price: item.sell_price_min || 0,
-              sell_city: item.city,
-              buy_price: item.buy_price_max || 0,
-              buy_city: item.city,
+              buy_price: 0,
+              buy_city: "",
+              sell_price: 0,
+              sell_city: "",
             };
-          } else {
-            if (
-              item.sell_price_min &&
-              (grouped[id].sell_price === 0 ||
-                item.sell_price_min < grouped[id].sell_price)
-            ) {
-              grouped[id].sell_price = item.sell_price_min;
-              grouped[id].sell_city = item.city;
-            }
-
-            if (
-              item.buy_price_max &&
-              item.buy_price_max > grouped[id].buy_price
-            ) {
-              grouped[id].buy_price = item.buy_price_max;
-              grouped[id].buy_city = item.city;
-            }
           }
-        }
 
-        const processed = Object.values(grouped)
-          .map((item) => {
-            const itemInfo = allInfo.find((i) => i.UniqueName === item.item_id);
-            return {
-              ...item,
-              name: itemInfo ? itemInfo.LocalizedNames["ES-ES"] : item.item_id,
-              image: itemInfo
-                ? `https://render.albiononline.com/v1/item/${item.item_id}.png`
-                : null,
-              profit:
-                item.sell_price && item.buy_price
-                  ? item.buy_price - item.sell_price
-                  : 0,
-            };
-          })
-          // .filter((item) => item.profit > 0)
-          .sort((a, b) => b.profit - a.profit)
-          .slice(0, 30);
+          const buy = item.buy_price_max || 0;
+          const sell = item.sell_price_min || 0;
+
+          if (buy > grouped[id].buy_price) {
+            grouped[id].buy_price = buy;
+            grouped[id].buy_city = item.city;
+          }
+
+          if ((grouped[id].sell_price === 0 || sell < grouped[id].sell_price) && sell !== 0) {
+            grouped[id].sell_price = sell;
+            grouped[id].sell_city = item.city;
+          }
+        });
+
+        const processed = Object.values(grouped).map((item) => {
+          const info = allInfo.find((i) => i.UniqueName === item.item_id);
+          const profit = item.buy_price && item.sell_price
+            ? item.buy_price - item.sell_price
+            : 0;
+
+          return {
+            ...item,
+            name: info ? info.LocalizedNames["ES-ES"] : item.item_id,
+            image: info ? info.UniqueName : null,
+            profit,
+          };
+        });
 
         setItemsData(processed);
-        setAllItemsInfo(allInfo);
       } catch (err) {
         console.error("Error cargando datos:", err);
       } finally {
@@ -89,22 +80,36 @@ const App = () => {
   );
 
   return (
-    <div style={{ padding: "1rem", fontFamily: "Arial, sans-serif" }}>
-      <img src="/icon.png" alt="icon" style={{ height: "40px" }} />
-      <h1>Albionsito Mercado</h1>
+    <div style={{ padding: "20px", fontFamily: "Arial" }}>
+      <header style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+        <img src="/icon.png" alt="icon" width={40} />
+        <h1>Albionsito Mercado</h1>
+      </header>
 
       <input
         type="text"
-        placeholder="Buscar ítem..."
+        placeholder="🔍 Buscar ítem..."
         value={searchTerm}
         onChange={(e) => setSearchTerm(e.target.value)}
-        style={{ padding: "0.5rem", marginBottom: "1rem", width: "100%" }}
+        style={{
+          width: "100%",
+          padding: "10px",
+          margin: "20px 0",
+          border: "2px solid orange",
+          fontSize: "16px",
+        }}
       />
 
       {loading ? (
         <p>Cargando datos...</p>
       ) : (
-        <table width="100%" border="1" cellPadding="10">
+        <table
+          style={{
+            width: "100%",
+            borderCollapse: "collapse",
+            textAlign: "center",
+          }}
+        >
           <thead>
             <tr>
               <th>Ícono</th>
@@ -121,7 +126,11 @@ const App = () => {
               <tr key={item.item_id}>
                 <td>
                   {item.image ? (
-                    <img src={item.image} alt={item.name} width="40" />
+                    <img
+                      src={`https://render.albiononline.com/v1/item/${item.image}.png`}
+                      alt={item.name}
+                      width={40}
+                    />
                   ) : (
                     "❌"
                   )}
@@ -131,8 +140,13 @@ const App = () => {
                 <td>{item.buy_city}</td>
                 <td>{item.sell_price.toLocaleString()} 🪙</td>
                 <td>{item.sell_city}</td>
-                <td style={{ fontWeight: "bold", color: "green" }}>
-                  +{item.profit.toLocaleString()} 🪙
+                <td
+                  style={{
+                    color: item.profit >= 0 ? "green" : "red",
+                    fontWeight: "bold",
+                  }}
+                >
+                  {item.profit.toLocaleString()} 🪙
                 </td>
               </tr>
             ))}

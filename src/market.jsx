@@ -11,22 +11,33 @@ function Market() {
   useEffect(() => {
     fetch('/items.json')
       .then((res) => res.json())
-      .then((data) => setItemsData(data))
-      .catch((error) => console.error('Error cargando items.json:', error));
+      .then((data) => {
+        console.log('✅ items.json cargado:', data.length, 'ítems');
+        setItemsData(data);
+      })
+      .catch((error) => console.error('❌ Error cargando items.json:', error));
   }, []);
 
-  // Filtrar ítems al escribir en el buscador (CORREGIDO AQUÍ)
+  // Filtrar ítems al escribir en el buscador (con logs)
   useEffect(() => {
+    console.log('🔍 Búsqueda:', search);
+
     if (search.trim().length < 3) {
+      console.log('⛔ Búsqueda muy corta (<3 caracteres)');
       setFilteredItems([]);
       return;
     }
 
-    const resultados = itemsData.filter(
-      (item) =>
-        item.name &&
-        item.name.toLowerCase().includes(search.toLowerCase())
-    );
+    const resultados = itemsData.filter((item) => {
+      const nombre = item.name?.toLowerCase() || '';
+      const coincide = nombre.includes(search.toLowerCase());
+      if (coincide) {
+        console.log('✅ Coincide:', item.name);
+      }
+      return coincide;
+    });
+
+    console.log(`📦 Ítems filtrados: ${resultados.length}`);
     setFilteredItems(resultados);
   }, [search, itemsData]);
 
@@ -41,11 +52,13 @@ function Market() {
       setLoading(true);
       try {
         const ids = filteredItems.map((item) => item.id).join(',');
+        console.log('🌐 Solicitando precios para IDs:', ids);
         const res = await fetch(`https://albionsito-backend.onrender.com/items?ids=${ids}`);
         const data = await res.json();
+        console.log('✅ Precios recibidos:', data.length);
         setBackendData(data);
       } catch (error) {
-        console.error('Error al obtener precios:', error);
+        console.error('❌ Error al obtener precios:', error);
       } finally {
         setLoading(false);
       }
@@ -54,9 +67,9 @@ function Market() {
     fetchData();
   }, [filteredItems]);
 
-  // Función para obtener el mejor precio de compra y venta por ítem
+  // Procesar datos para tabla
   const procesarDatos = () => {
-    return filteredItems.map((item) => {
+    const resultado = filteredItems.map((item) => {
       const relacionados = backendData.filter((entry) => entry.item_id === item.id);
 
       let mejorCompra = null;
@@ -89,6 +102,10 @@ function Market() {
           ? mejorCompra.price - mejorVenta.price
           : null;
 
+      if (ganancia !== null) {
+        console.log(`📊 ${item.name} — Compra: ${mejorVenta?.price}, Venta: ${mejorCompra?.price}, Ganancia: ${ganancia}`);
+      }
+
       return {
         id: item.id,
         name: item.name,
@@ -97,7 +114,11 @@ function Market() {
         venta: mejorCompra,
         ganancia,
       };
-    }).filter((item) => item.ganancia !== null);
+    });
+
+    const filtrado = resultado.filter((item) => item.ganancia !== null);
+    console.log('✅ Ítems finales a mostrar:', filtrado.length);
+    return filtrado;
   };
 
   const itemsFinales = procesarDatos();

@@ -69,7 +69,7 @@ const Busqueda = () => {
           type="text"
           value={nombreItem}
           onChange={manejarInput}
-          placeholder="Ej: Caballo, Hacha, T8, etc."
+          placeholder="Ej: Caballo, Hacha, Túnica, etc."
           className="p-2 border rounded w-full"
         />
         <button

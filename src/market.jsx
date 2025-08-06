@@ -33,7 +33,7 @@ export default function Market() {
     if (query.length > 2) {
       const resultados = itemsData.filter(item =>
         item.nombre?.toLowerCase().includes(query.toLowerCase())
-      ).slice(0, 15); // limitar resultados
+      )
       setFilteredItems(resultados);
     } else {
       setFilteredItems([]);

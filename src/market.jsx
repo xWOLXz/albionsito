@@ -7,21 +7,39 @@ export default function Market() {
   const [loading, setLoading] = useState(false);
   const [debounceTimeout, setDebounceTimeout] = useState(null);
 
-  const fetchItems = async () => {
+  const fetchItemsFromBackends = async () => {
     setLoading(true);
     try {
-      const res = await fetch('https://albionsito-backend.onrender.com/items');
-      const data = await res.json();
-      setItems(data);
-      setFilteredItems(data);
-      console.log('✅ Backend: ', data.length, 'ítems recibidos');
-      data.forEach((entry) => {
+      const urls = [
+        'https://albionsito-backend.onrender.com/items',
+        'https://albionsito-backend2.onrender.com/items'
+      ];
+
+      const responses = await Promise.all(urls.map(url => fetch(url)));
+      const allData = await Promise.all(responses.map(res => res.json()));
+      const combined = [...allData[0], ...allData[1]];
+
+      // Evitar duplicados por item_id + ciudad
+      const uniqueMap = {};
+      combined.forEach(entry => {
+        const key = `${entry.item_id}-${entry.city}`;
+        if (!uniqueMap[key]) {
+          uniqueMap[key] = entry;
+        }
+      });
+
+      const uniqueItems = Object.values(uniqueMap);
+      setItems(uniqueItems);
+      setFilteredItems(uniqueItems);
+
+      console.log('✅ Total ítems combinados:', uniqueItems.length);
+      uniqueItems.forEach((entry) => {
         console.log(
           `📦 Precio: ${entry.item_id} - ${entry.city} venta: ${entry.sell_price_min} / compra: ${entry.buy_price_max}`
         );
       });
     } catch (error) {
-      console.error('❌ Error al obtener precios:', error);
+      console.error('❌ Error al obtener precios de los backends:', error);
     } finally {
       setLoading(false);
     }
@@ -38,11 +56,11 @@ export default function Market() {
         return;
       }
 
-      const uniqueItems = {};
+      const unique = {};
       const result = items.filter((item) => {
         const match = item.localized_name?.toLowerCase().includes(lower);
-        if (match && !uniqueItems[item.item_id]) {
-          uniqueItems[item.item_id] = true;
+        if (match && !unique[item.item_id]) {
+          unique[item.item_id] = true;
           return true;
         }
         return false;
@@ -50,13 +68,13 @@ export default function Market() {
 
       setFilteredItems(result);
       console.log(`🔍 Búsqueda: "${text}" — Coincidencias: ${result.length}`);
-    }, 3000); // 3s debounce
+    }, 3000);
 
     setDebounceTimeout(timeout);
   };
 
   useEffect(() => {
-    fetchItems();
+    fetchItemsFromBackends();
   }, []);
 
   return (
@@ -79,7 +97,7 @@ export default function Market() {
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
           {filteredItems.map((item) => (
             <div
-              key={item.item_id}
+              key={`${item.item_id}-${item.city}`}
               className="bg-gray-900 p-4 rounded-lg shadow text-white flex items-center gap-4"
             >
               <img
@@ -97,6 +115,7 @@ export default function Market() {
                 <p className="text-sm mt-1">
                   Venta: {item.sell_price_min.toLocaleString()} / Compra: {item.buy_price_max.toLocaleString()}
                 </p>
+                <p className="text-sm text-yellow-300">{item.city}</p>
               </div>
             </div>
           ))}

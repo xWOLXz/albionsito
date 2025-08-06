@@ -11,7 +11,7 @@ export default function Market() {
   const [itemsData, setItemsData] = useState([]);
   const [filteredItems, setFilteredItems] = useState([]);
   const [itemPrices, setItemPrices] = useState({});
-  const [loading, setLoading] = useState(false);
+  const [loadingItemId, setLoadingItemId] = useState(null);
 
   // ✅ Cargar items.json al iniciar
   useEffect(() => {
@@ -31,14 +31,9 @@ export default function Market() {
   // ✅ Buscar ítems por nombre (mínimo 3 letras)
   useEffect(() => {
     if (query.length > 2) {
-      const resultados = itemsData.filter(item => {
-        const nombre =
-    item.LocalizedNames?.['ES-ES']?.toLowerCase() ||
-    item.LocalizedNames?.['EN-US']?.toLowerCase() ||
-    item.UniqueName?.toLowerCase();
-
-    return nombre.includes(query.toLowerCase());
-      }).slice(0, 15);
+      const resultados = itemsData.filter(item =>
+        item.nombre?.toLowerCase().includes(query.toLowerCase())
+      ).slice(0, 15); // limitar resultados
       setFilteredItems(resultados);
     } else {
       setFilteredItems([]);
@@ -47,7 +42,7 @@ export default function Market() {
 
   // ✅ Consultar precios desde los backends
   const fetchPrices = async (itemId) => {
-    setLoading(true);
+    setLoadingItemId(itemId);
     let data = [];
     for (const url of backends) {
       try {
@@ -64,15 +59,15 @@ export default function Market() {
 
     const preciosPorCiudad = {};
     data.forEach(entry => {
-      if (!entry.city || entry.sell_price_min === 0) return;
+      if (!entry.city) return;
       preciosPorCiudad[entry.city] = {
-        venta: entry.sell_price_min,
+        venta: entry.sell_price_min || 0,
         compra: entry.buy_price_max || 0
       };
     });
 
     setItemPrices(prev => ({ ...prev, [itemId]: preciosPorCiudad }));
-    setLoading(false);
+    setLoadingItemId(null);
   };
 
   const calcularGanancia = (venta, compra) => {
@@ -93,27 +88,27 @@ export default function Market() {
       />
 
       {filteredItems.map(item => (
-        <div key={item.UniqueName} style={{ marginBottom: 30, borderBottom: '1px solid #444', paddingBottom: 10 }}>
+        <div key={item.id} style={{ marginBottom: 30, borderBottom: '1px solid #444', paddingBottom: 10 }}>
           <div style={{ display: 'flex', alignItems: 'center' }}>
             <img
-              src={`https://render.albiononline.com/v1/item/${item.UniqueName}.png`}
-              alt={item.LocalizedNames?.['ES-ES']}
+              src={item.imagen}
+              alt={item.nombre}
               width={50}
               height={50}
               style={{ marginRight: 10 }}
             />
             <div>
-              <strong>{item.LocalizedNames?.['ES-ES'] || item.UniqueName}</strong><br />
-              <button onClick={() => fetchPrices(item.UniqueName)}>Ver precios</button>
+              <strong>{item.nombre}</strong><br />
+              <button onClick={() => fetchPrices(item.id)}>Ver precios</button>
             </div>
           </div>
 
-          {loading && <p>Cargando precios...</p>}
+          {loadingItemId === item.id && <p>⏳ Cargando precios...</p>}
 
-          {itemPrices[item.UniqueName] && (
+          {itemPrices[item.id] && (
             <div style={{ marginTop: 10 }}>
               {ciudades.map(ciudad => {
-                const datos = itemPrices[item.UniqueName][ciudad];
+                const datos = itemPrices[item.id][ciudad];
                 if (!datos) return null;
                 const { venta, compra } = datos;
                 return (

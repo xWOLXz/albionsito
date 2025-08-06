@@ -13,7 +13,6 @@ export default function Market() {
   const [itemPrices, setItemPrices] = useState({});
   const [loadingItemId, setLoadingItemId] = useState(null);
 
-  // ✅ Cargar items.json
   useEffect(() => {
     const fetchItems = async () => {
       try {
@@ -28,7 +27,6 @@ export default function Market() {
     fetchItems();
   }, []);
 
-  // ✅ Buscar ítems por nombre
   useEffect(() => {
     if (query.length > 2) {
       const resultados = itemsData.filter(item =>
@@ -41,7 +39,6 @@ export default function Market() {
     }
   }, [query, itemsData]);
 
-  // ✅ Consultar precios desde los backends
   const fetchPrices = async (itemId) => {
     setLoadingItemId(itemId);
     let data = [];
@@ -69,19 +66,23 @@ export default function Market() {
 
     const preciosPorCiudad = {};
 
-    if (Array.isArray(data)) {
-      data.forEach(entry => {
-        if (!entry.city) return;
-        if (!preciosPorCiudad[entry.city]) {
-          preciosPorCiudad[entry.city] = {
-            venta: entry.sell_price_min || 0,
-            compra: entry.buy_price_max || 0
-          };
-        }
-      });
-    }
+    // Recorremos todos los resultados y almacenamos los mejores precios por ciudad
+    data.forEach(entry => {
+      const ciudad = entry.city;
+      if (!ciudades.includes(ciudad)) return;
 
-    console.log(`📊 Precios para ${itemId}:`, preciosPorCiudad);
+      const venta = entry.sell_price_min || 0;
+      const compra = entry.buy_price_max || 0;
+
+      if (!preciosPorCiudad[ciudad]) {
+        preciosPorCiudad[ciudad] = { venta, compra };
+      } else {
+        preciosPorCiudad[ciudad].venta = Math.min(preciosPorCiudad[ciudad].venta || Infinity, venta || Infinity);
+        preciosPorCiudad[ciudad].compra = Math.max(preciosPorCiudad[ciudad].compra || 0, compra || 0);
+      }
+    });
+
+    console.log(`📊 Precios finales para ${itemId}:`, preciosPorCiudad);
     setItemPrices(prev => ({ ...prev, [itemId]: preciosPorCiudad }));
     setLoadingItemId(null);
   };

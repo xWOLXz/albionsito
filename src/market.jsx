@@ -1,10 +1,13 @@
 import { useEffect, useState } from 'react';
 
 const ciudades = ["Caerleon", "Bridgewatch", "Lymhurst", "Martlock", "Thetford", "Fort Sterling", "Brecilien"];
+
 const backends = [
   "https://albionsito-backend.onrender.com/items",
   "https://albionsito-backend2.onrender.com/items"
 ];
+
+const checkPricesAPI = "https://west.albion-online-data.com/api/v2/stats/prices";
 
 export default function Market() {
   const [query, setQuery] = useState('');
@@ -13,7 +16,6 @@ export default function Market() {
   const [itemPrices, setItemPrices] = useState({});
   const [loadingItemId, setLoadingItemId] = useState(null);
 
-  // ✅ Cargar items.json al iniciar
   useEffect(() => {
     const fetchItems = async () => {
       try {
@@ -28,37 +30,55 @@ export default function Market() {
     fetchItems();
   }, []);
 
-  // ✅ Buscar ítems por nombre (mínimo 3 letras)
   useEffect(() => {
     if (query.length > 2) {
       const resultados = itemsData.filter(item =>
         item.nombre?.toLowerCase().includes(query.toLowerCase())
-      )
+      );
       setFilteredItems(resultados);
     } else {
       setFilteredItems([]);
     }
   }, [query, itemsData]);
 
-  // ✅ Consultar precios desde los backends
   const fetchPrices = async (itemId) => {
     setLoadingItemId(itemId);
-    let data = [];
+    let precios = [];
+
+    // Probar los backends personalizados
     for (const url of backends) {
       try {
         const res = await fetch(`${url}?ids=${itemId}`);
         if (res.ok) {
-          data = await res.json();
-          console.log(`✅ Precios cargados de: ${url}`);
-          break;
+          const data = await res.json();
+          if (Array.isArray(data) && data.length > 0) {
+            precios = data;
+            console.log(`✅ Datos de ${url}`);
+            break;
+          }
         }
       } catch (err) {
-        console.warn('⚠️ Error al consultar', url);
+        console.warn(`⚠️ Error en backend ${url}`);
       }
     }
 
+    // Si no hubo datos válidos, usar CheckPrices
+    if (precios.length === 0) {
+      try {
+        const ciudadParam = ciudades.join(',');
+        const res = await fetch(`${checkPricesAPI}/${itemId}.json?locations=${ciudadParam}`);
+        if (res.ok) {
+          precios = await res.json();
+          console.log("✅ Datos desde CheckPrices");
+        }
+      } catch (err) {
+        console.warn("⚠️ Error usando CheckPrices");
+      }
+    }
+
+    // Agrupar por ciudad
     const preciosPorCiudad = {};
-    data.forEach(entry => {
+    precios.forEach(entry => {
       if (!entry.city) return;
       preciosPorCiudad[entry.city] = {
         venta: entry.sell_price_min || 0,
@@ -99,11 +119,11 @@ export default function Market() {
             />
             <div>
               <strong>{item.nombre}</strong><br />
-              <button onClick={() => fetchPrices(item.id)}>Ver precios</button>
+              <button onClick={() => fetchPrices(item.id)}>
+                {loadingItemId === item.id ? '⏳ Cargando...' : 'Ver precios'}
+              </button>
             </div>
           </div>
-
-          {loadingItemId === item.id && <p>⏳ Cargando precios...</p>}
 
           {itemPrices[item.id] && (
             <div style={{ marginTop: 10 }}>

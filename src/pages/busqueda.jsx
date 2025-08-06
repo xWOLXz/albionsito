@@ -32,7 +32,7 @@ const Busqueda = () => {
     const filtrados = items.filter((item) =>
       item.nombre.toLowerCase().includes(busqueda.toLowerCase())
     );
-    setResultados(filtrados.slice(0, 10)); // mostrar solo los 10 primeros
+    setResultados(filtrados.slice(0, 50)); // mostrar solo los 10 primeros
   }, [busqueda, items]);
 
   const seleccionarItem = async (item) => {

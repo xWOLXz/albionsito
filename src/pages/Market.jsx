@@ -1,39 +1,39 @@
 import React, { useEffect, useState } from 'react';
-import ItemCard from '../components/ItemCard';
 import Loader from '../components/Loader';
+import ItemCard from '../components/ItemCard';
 
 const Market = () => {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const fetchMarketData = async () => {
-    setLoading(true);
+  const fetchItems = async () => {
     try {
+      setLoading(true);
       const response = await fetch('https://albionsito-backend.onrender.com/items');
       const data = await response.json();
-
-      // Ordenar por mayor ganancia
-      const sorted = data.sort((a, b) => b.profit - a.profit).slice(0, 30);
-      setItems(sorted);
+      console.log('🔍 Respuesta del backend Market:', data);
+      setItems(data || []);
     } catch (error) {
-      console.error('Error al obtener datos del mercado:', error);
+      console.error('❌ Error al obtener los datos del market:', error);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchMarketData();
+    fetchItems();
   }, []);
 
   return (
     <div className="p-4">
-      <div className="flex justify-between items-center mb-4">
-        <h1 className="text-2xl font-bold">Top Ganancias del Mercado</h1>
-        <button onClick={fetchMarketData} title="Actualizar">
-          <img src="/albion-loader.gif" alt="Actualizar" className="w-6 h-6" />
-        </button>
-      </div>
+      <h1 className="text-2xl font-bold mb-4 text-white">Market General</h1>
+      <button
+        onClick={fetchItems}
+        className="bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-2 px-4 rounded mb-4"
+      >
+        🔄 Recargar
+      </button>
+
       {loading ? (
         <Loader />
       ) : (

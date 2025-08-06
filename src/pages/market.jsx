@@ -1,6 +1,6 @@
 // pages/market.jsx
 import { useEffect, useState } from 'react';
-import Loader from '../components/Loader';
+import Loader from '../components/Loader.jsx';
 
 export default function Market() {
   const [items, setItems] = useState([]);

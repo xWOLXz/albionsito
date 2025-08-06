@@ -1,6 +1,28 @@
 import React, { useState, useEffect } from 'react';
-const res = await fetch('/items.json');
-const itemsData = await res.json(); // ✅ Esto SÍ funciona en producción (Vercel)
+import { useEffect, useState } from 'react';
+
+function MarketGeneral() {
+  const [itemsData, setItemsData] = useState([]);
+
+  useEffect(() => {
+    const fetchItems = async () => {
+      const res = await fetch('/items.json');
+      const data = await res.json();
+      setItemsData(data);
+    };
+
+    fetchItems();
+  }, []);
+
+  return (
+    <div>
+      <h1>Market General</h1>
+      {/* renderizar itemsData */}
+    </div>
+  );
+}
+
+export default MarketGeneral;
 
 const ciudades = ["Caerleon", "Bridgewatch", "Lymhurst", "Martlock", "Thetford", "Fort Sterling", "Brecilien"];
 const backends = [

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import itemsData from '../../public/items.json';
+const res = await fetch('/items.json');
+const itemsData = await res.json(); // ✅ Esto SÍ funciona en producción (Vercel)
 
 const ciudades = ["Caerleon", "Bridgewatch", "Lymhurst", "Martlock", "Thetford", "Fort Sterling", "Brecilien"];
 const backends = [

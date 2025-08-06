@@ -1,132 +1,110 @@
-// Reemplaza este archivo completo como market.jsx
-import React, { useEffect, useState } from 'react';
-import './market.css'; // Opcional para estilos si usas
+import React, { useState, useEffect } from 'react';
+import itemsData from '../../public/items.json';
 
 const ciudades = ["Caerleon", "Bridgewatch", "Lymhurst", "Martlock", "Thetford", "Fort Sterling", "Brecilien"];
 const backends = [
-  'https://albionsito-backend.onrender.com/items',
-  'https://albionsito-backend2.onrender.com/items'
+  "https://albionsito-backend.onrender.com/items",
+  "https://albionsito-backend2.onrender.com/items"
 ];
 
-function obtenerMejorPrecio(datosFiltrados, tipo, ciudad) {
-  const precios = datosFiltrados
-    .filter((i) => i.city === ciudad && i[tipo] > 0)
-    .map((i) => i[tipo]);
-  return precios.length > 0 ? (tipo === 'sell_price_min' ? Math.min(...precios) : Math.max(...precios)) : 0;
-}
-
 export default function Market() {
-  const [items, setItems] = useState([]);
-  const [busqueda, setBusqueda] = useState('');
-  const [cargando, setCargando] = useState(false);
+  const [query, setQuery] = useState('');
+  const [filteredItems, setFilteredItems] = useState([]);
+  const [itemPrices, setItemPrices] = useState({});
+  const [loading, setLoading] = useState(false);
 
-  const fetchData = async () => {
-    setCargando(true);
+  // Buscar ítems por nombre
+  useEffect(() => {
+    if (query.length > 2) {
+      const results = itemsData.filter(item =>
+        item.LocalizedNames?.['ES-ES']?.toLowerCase().includes(query.toLowerCase())
+      ).slice(0, 15); // Máximo 15 resultados
+      setFilteredItems(results);
+    } else {
+      setFilteredItems([]);
+    }
+  }, [query]);
+
+  // Buscar precios al hacer clic
+  const fetchPrices = async (itemId) => {
+    setLoading(true);
+    let data = [];
     for (const url of backends) {
       try {
-        const res = await fetch(url);
-        const data = await res.json();
-        if (Array.isArray(data) && data.length > 0) {
-          const filtrados = data.filter(i =>
-            i.sell_price_min > 0 || i.buy_price_max > 0
-          );
-          const agrupados = {};
-          filtrados.forEach(i => {
-            const clave = i.item_id;
-            if (!agrupados[clave]) agrupados[clave] = [];
-            agrupados[clave].push(i);
-          });
-
-          const itemsProcesados = Object.entries(agrupados).map(([item_id, registros]) => {
-            const mejoresPrecios = ciudades.map(ciudad => ({
-              ciudad,
-              venta: obtenerMejorPrecio(registros, 'sell_price_min', ciudad),
-              compra: obtenerMejorPrecio(registros, 'buy_price_max', ciudad)
-            }));
-            const mejorVenta = mejoresPrecios.reduce((a, b) => a.venta > b.venta ? a : b);
-            const mejorCompra = mejoresPrecios.reduce((a, b) => a.compra > b.compra ? a : b);
-            const ganancia = mejorVenta.venta - mejorCompra.compra;
-
-            return {
-              item_id,
-              nombre: item_id.replace(/_/g, ' ').replace('T', 'Tier '),
-              imagen: `https://render.albiononline.com/v1/item/${item_id}.png`,
-              venta: mejorVenta.venta,
-              ciudadVenta: mejorVenta.ciudad,
-              compra: mejorCompra.compra,
-              ciudadCompra: mejorCompra.ciudad,
-              ganancia
-            };
-          });
-
-          const itemsOrdenados = itemsProcesados
-            .filter(i => i.ganancia > 0)
-            .sort((a, b) => b.ganancia - a.ganancia)
-            .slice(0, 30);
-
-          setItems(itemsOrdenados);
-          break; // rompe si uno funciona
+        const res = await fetch(`${url}?ids=${itemId}`);
+        if (res.ok) {
+          data = await res.json();
+          break;
         }
-      } catch (error) {
-        console.warn(`⚠️ Falló la URL: ${url}`);
+      } catch (err) {
+        console.warn('❌ Backend falló:', url);
       }
     }
-    setCargando(false);
+
+    const preciosPorCiudad = {};
+    data.forEach(entry => {
+      if (!entry.city || entry.sell_price_min === 0) return;
+      preciosPorCiudad[entry.city] = {
+        venta: entry.sell_price_min,
+        compra: entry.buy_price_max || 0
+      };
+    });
+
+    setItemPrices(prev => ({ ...prev, [itemId]: preciosPorCiudad }));
+    setLoading(false);
   };
 
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  const resultados = items.filter(i =>
-    i.nombre.toLowerCase().includes(busqueda.toLowerCase())
-  );
+  const calcularGanancia = (venta, compra) => {
+    const ganancia = venta - compra;
+    return ganancia > 0 ? `+${ganancia.toLocaleString()}` : `${ganancia.toLocaleString()}`;
+  };
 
   return (
-    <div className="market-container">
-      <h1>📊 Top ítems comerciales</h1>
+    <div style={{ padding: 20 }}>
+      <h1>🛒 Market General</h1>
+
       <input
         type="text"
         placeholder="Buscar ítem..."
-        value={busqueda}
-        onChange={(e) => setBusqueda(e.target.value)}
-        className="buscador"
+        value={query}
+        onChange={e => setQuery(e.target.value)}
+        style={{ padding: 8, width: '100%', marginBottom: 20 }}
       />
-      <button onClick={fetchData} className="actualizar">🔄</button>
-      {cargando ? (
-        <p>Cargando datos...</p>
-      ) : (
-        <table>
-          <thead>
-            <tr>
-              <th>Ítem</th>
-              <th>Venta 📤</th>
-              <th>Compra 📥</th>
-              <th>Ganancia 💰</th>
-            </tr>
-          </thead>
-          <tbody>
-            {resultados.map((item) => (
-              <tr key={item.item_id}>
-                <td>
-                  <img src={item.imagen} alt={item.nombre} width="32" />
-                  <br />
-                  {item.nombre}
-                </td>
-                <td>
-                  {item.venta.toLocaleString()} <br />
-                  <small>{item.ciudadVenta}</small>
-                </td>
-                <td>
-                  {item.compra.toLocaleString()} <br />
-                  <small>{item.ciudadCompra}</small>
-                </td>
-                <td>{item.ganancia.toLocaleString()}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
+
+      {filteredItems.map(item => (
+        <div key={item.UniqueName} style={{ marginBottom: 30, borderBottom: '1px solid #444', paddingBottom: 10 }}>
+          <div style={{ display: 'flex', alignItems: 'center' }}>
+            <img
+              src={`https://render.albiononline.com/v1/item/${item.UniqueName}.png`}
+              alt={item.LocalizedNames?.['ES-ES']}
+              width={50}
+              height={50}
+              style={{ marginRight: 10 }}
+            />
+            <div>
+              <strong>{item.LocalizedNames?.['ES-ES'] || item.UniqueName}</strong><br />
+              <button onClick={() => fetchPrices(item.UniqueName)}>Ver precios</button>
+            </div>
+          </div>
+
+          {loading && <p>Cargando precios...</p>}
+
+          {itemPrices[item.UniqueName] && (
+            <div style={{ marginTop: 10 }}>
+              {ciudades.map(ciudad => {
+                const datos = itemPrices[item.UniqueName][ciudad];
+                if (!datos) return null;
+                const { venta, compra } = datos;
+                return (
+                  <div key={ciudad}>
+                    <strong>{ciudad}</strong>: 🛒 Venta: {venta.toLocaleString()} | 💰 Compra: {compra.toLocaleString()} | 📈 Ganancia: {calcularGanancia(venta, compra)}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      ))}
     </div>
   );
 }

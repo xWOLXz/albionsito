@@ -1,9 +1,0 @@
-/* src/index.css */
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
-/* Puedes agregar estilos globales aquí si los necesitas */
-body {
-  @apply bg-[#0f0f0f] text-white font-sans;
-}

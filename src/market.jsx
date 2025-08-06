@@ -1,13 +1,10 @@
 import { useEffect, useState } from 'react';
 
 const ciudades = ["Caerleon", "Bridgewatch", "Lymhurst", "Martlock", "Thetford", "Fort Sterling", "Brecilien"];
-
 const backends = [
   "https://albionsito-backend.onrender.com/items",
   "https://albionsito-backend2.onrender.com/items"
 ];
-
-const checkPricesAPI = "https://west.albion-online-data.com/api/v2/stats/prices";
 
 export default function Market() {
   const [query, setQuery] = useState('');
@@ -16,76 +13,75 @@ export default function Market() {
   const [itemPrices, setItemPrices] = useState({});
   const [loadingItemId, setLoadingItemId] = useState(null);
 
+  // ✅ Cargar items.json
   useEffect(() => {
     const fetchItems = async () => {
       try {
         const res = await fetch('/items.json');
         const data = await res.json();
-        setItemsData(data);
         console.log('✅ items.json cargado:', data.length);
+        setItemsData(data);
       } catch (err) {
-        console.error('❌ Error cargando items.json', err);
+        console.error('❌ Error cargando items.json:', err);
       }
     };
     fetchItems();
   }, []);
 
+  // ✅ Buscar ítems por nombre
   useEffect(() => {
     if (query.length > 2) {
       const resultados = itemsData.filter(item =>
-        item.nombre?.toLowerCase().includes(query.toLowerCase())
+        item?.nombre?.toLowerCase().includes(query.toLowerCase())
       );
+      console.log('🔍 Resultados filtrados:', resultados.length);
       setFilteredItems(resultados);
     } else {
       setFilteredItems([]);
     }
   }, [query, itemsData]);
 
+  // ✅ Consultar precios desde los backends
   const fetchPrices = async (itemId) => {
     setLoadingItemId(itemId);
-    let precios = [];
+    let data = [];
 
-    // Probar los backends personalizados
     for (const url of backends) {
       try {
+        console.log(`🌐 Consultando: ${url}?ids=${itemId}`);
         const res = await fetch(`${url}?ids=${itemId}`);
         if (res.ok) {
-          const data = await res.json();
-          if (Array.isArray(data) && data.length > 0) {
-            precios = data;
-            console.log(`✅ Datos de ${url}`);
+          const resData = await res.json();
+          if (Array.isArray(resData) && resData.length > 0) {
+            data = resData;
+            console.log(`✅ Datos recibidos de ${url}:`, data);
             break;
+          } else {
+            console.warn(`⚠️ ${url} respondió sin datos válidos`);
           }
+        } else {
+          console.warn(`⚠️ ${url} respondió con error:`, res.status);
         }
       } catch (err) {
-        console.warn(`⚠️ Error en backend ${url}`);
+        console.error(`❌ Error al consultar ${url}:`, err);
       }
     }
 
-    // Si no hubo datos válidos, usar CheckPrices
-    if (precios.length === 0) {
-      try {
-        const ciudadParam = ciudades.join(',');
-        const res = await fetch(`${checkPricesAPI}/${itemId}.json?locations=${ciudadParam}`);
-        if (res.ok) {
-          precios = await res.json();
-          console.log("✅ Datos desde CheckPrices");
-        }
-      } catch (err) {
-        console.warn("⚠️ Error usando CheckPrices");
-      }
-    }
-
-    // Agrupar por ciudad
     const preciosPorCiudad = {};
-    precios.forEach(entry => {
-      if (!entry.city) return;
-      preciosPorCiudad[entry.city] = {
-        venta: entry.sell_price_min || 0,
-        compra: entry.buy_price_max || 0
-      };
-    });
 
+    if (Array.isArray(data)) {
+      data.forEach(entry => {
+        if (!entry.city) return;
+        if (!preciosPorCiudad[entry.city]) {
+          preciosPorCiudad[entry.city] = {
+            venta: entry.sell_price_min || 0,
+            compra: entry.buy_price_max || 0
+          };
+        }
+      });
+    }
+
+    console.log(`📊 Precios para ${itemId}:`, preciosPorCiudad);
     setItemPrices(prev => ({ ...prev, [itemId]: preciosPorCiudad }));
     setLoadingItemId(null);
   };
@@ -119,11 +115,11 @@ export default function Market() {
             />
             <div>
               <strong>{item.nombre}</strong><br />
-              <button onClick={() => fetchPrices(item.id)}>
-                {loadingItemId === item.id ? '⏳ Cargando...' : 'Ver precios'}
-              </button>
+              <button onClick={() => fetchPrices(item.id)}>Ver precios</button>
             </div>
           </div>
+
+          {loadingItemId === item.id && <p>⏳ Cargando precios...</p>}
 
           {itemPrices[item.id] && (
             <div style={{ marginTop: 10 }}>

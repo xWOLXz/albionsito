@@ -1,12 +1,16 @@
-import React from 'react';
-import Market from './market';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import Market from './pages/market';
+import Busqueda from './pages/busqueda';
 
-const App = () => {
+function App() {
   return (
-    <div className="min-h-screen bg-zinc-900 text-white">
-      <Market />
-    </div>
+    <Router>
+      <Routes>
+        <Route path="/" element={<Market />} />
+        <Route path="/busqueda" element={<Busqueda />} />
+      </Routes>
+    </Router>
   );
-};
+}
 
 export default App;

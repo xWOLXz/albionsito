@@ -1,80 +1,50 @@
-import React, { useEffect, useState } from 'react'
-import ItemCard from '../components/ItemCard'
-import Loader from '../components/Loader'
-import SearchBar from '../components/SearchBar'
+import React, { useEffect, useState } from 'react';
+import ItemCard from '../components/ItemCard';
+import Loader from '../components/Loader';
 
 const Market = () => {
-  const [items, setItems] = useState([])
-  const [filteredItems, setFilteredItems] = useState([])
-  const [loading, setLoading] = useState(true)
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchMarketData = async () => {
+    setLoading(true);
+    try {
+      const response = await fetch('https://albionsito-backend.onrender.com/items');
+      const data = await response.json();
+
+      // Ordenar por mayor ganancia
+      const sorted = data.sort((a, b) => b.profit - a.profit).slice(0, 30);
+      setItems(sorted);
+    } catch (error) {
+      console.error('Error al obtener datos del mercado:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const resItems = await fetch('/items.json')
-        const allItems = await resItems.json()
-
-        const itemIds = allItems.map((item) => item.id).join(',')
-        const resPrices = await fetch(`https://west.albion-online-data.com/api/v2/stats/prices/${itemIds}?locations=Caerleon,Bridgewatch,Martlock,FortSterling,Lymhurst,Thetford`)
-        const priceData = await resPrices.json()
-
-        const enrichedItems = allItems.map((item) => {
-          const related = priceData.filter(p => p.item_id === item.id)
-
-          const sell = related.filter(e => e.sell_price_min > 0)
-          const buy = related.filter(e => e.buy_price_max > 0)
-
-          const bestSell = sell.sort((a, b) => a.sell_price_min - b.sell_price_min)[0]
-          const bestBuy = buy.sort((a, b) => b.buy_price_max - a.buy_price_max)[0]
-
-          const profit = (bestBuy?.buy_price_max || 0) - (bestSell?.sell_price_min || 0)
-
-          return {
-            ...item,
-            sellPrice: bestSell?.sell_price_min || 0,
-            sellCity: bestSell?.city || '',
-            buyPrice: bestBuy?.buy_price_max || 0,
-            buyCity: bestBuy?.city || '',
-            profit
-          }
-        })
-
-        const sorted = enrichedItems
-          .filter(e => e.sellPrice > 0 && e.buyPrice > 0 && e.profit > 0)
-          .sort((a, b) => b.profit - a.profit)
-          .slice(0, 30)
-
-        setItems(sorted)
-        setFilteredItems(sorted)
-        setLoading(false)
-      } catch (error) {
-        console.error('Error al cargar datos:', error)
-      }
-    }
-
-    fetchData()
-  }, [])
-
-  const handleSearch = (query) => {
-    const filtered = items.filter(item =>
-      item.name.toLowerCase().includes(query.toLowerCase())
-    )
-    setFilteredItems(filtered)
-  }
+    fetchMarketData();
+  }, []);
 
   return (
-    <div style={{ padding: '1rem' }}>
-      <h1>Market General - Albion</h1>
-      <SearchBar onSearch={handleSearch} />
+    <div className="p-4">
+      <div className="flex justify-between items-center mb-4">
+        <h1 className="text-2xl font-bold">Top Ganancias del Mercado</h1>
+        <button onClick={fetchMarketData} title="Actualizar">
+          <img src="/albion-loader.gif" alt="Actualizar" className="w-6 h-6" />
+        </button>
+      </div>
       {loading ? (
         <Loader />
       ) : (
-        filteredItems.map(item => (
-          <ItemCard key={item.id} item={item} />
-        ))
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {items.map((item) => (
+            <ItemCard key={item.item_id} item={item} />
+          ))}
+        </div>
       )}
     </div>
-  )
-}
+  );
+};
 
-export default Market
+export default Market;

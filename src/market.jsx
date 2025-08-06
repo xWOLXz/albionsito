@@ -8,49 +8,52 @@ const backends = [
 
 export default function Market() {
   const [query, setQuery] = useState('');
+  const [itemsData, setItemsData] = useState([]);
   const [filteredItems, setFilteredItems] = useState([]);
   const [itemPrices, setItemPrices] = useState({});
-  const [itemsData, setItemsData] = useState([]);
   const [loading, setLoading] = useState(false);
 
+  // ✅ Cargar items.json al iniciar
   useEffect(() => {
     const fetchItems = async () => {
       try {
         const res = await fetch('/items.json');
         const data = await res.json();
         setItemsData(data);
+        console.log('✅ items.json cargado:', data.length);
       } catch (err) {
-        console.error("❌ Error cargando items.json:", err);
+        console.error('❌ Error cargando items.json', err);
       }
     };
-
     fetchItems();
   }, []);
 
+  // ✅ Buscar ítems por nombre (mínimo 3 letras)
   useEffect(() => {
     if (query.length > 2) {
-      const results = itemsData.filter(item =>
+      const resultados = itemsData.filter(item =>
         item.LocalizedNames?.['ES-ES']?.toLowerCase().includes(query.toLowerCase())
       ).slice(0, 15);
-      setFilteredItems(results);
+      setFilteredItems(resultados);
     } else {
       setFilteredItems([]);
     }
   }, [query, itemsData]);
 
+  // ✅ Consultar precios desde los backends
   const fetchPrices = async (itemId) => {
     setLoading(true);
     let data = [];
-
     for (const url of backends) {
       try {
         const res = await fetch(`${url}?ids=${itemId}`);
         if (res.ok) {
           data = await res.json();
+          console.log(`✅ Precios cargados de: ${url}`);
           break;
         }
       } catch (err) {
-        console.warn('❌ Backend falló:', url);
+        console.warn('⚠️ Error al consultar', url);
       }
     }
 

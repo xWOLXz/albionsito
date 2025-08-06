@@ -6,8 +6,6 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import App from './App.jsx';
 import Market from './pages/market.jsx';
 import Busqueda from './pages/busqueda.jsx';
-import BlackMarket from './pages/blackmarket.jsx';
-//import TopGanancias from './pages/top.jsx';
 import Navbar from './components/Navbar.jsx';
 
 import './index.css';

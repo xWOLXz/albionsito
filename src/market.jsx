@@ -31,9 +31,14 @@ export default function Market() {
   // ✅ Buscar ítems por nombre (mínimo 3 letras)
   useEffect(() => {
     if (query.length > 2) {
-      const resultados = itemsData.filter(item =>
-        item.LocalizedNames?.['ES-ES']?.toLowerCase().includes(query.toLowerCase())
-      ).slice(0, 15);
+      const resultados = itemsData.filter(item => {
+        const nombre =
+    item.LocalizedNames?.['ES-ES']?.toLowerCase() ||
+    item.LocalizedNames?.['EN-US']?.toLowerCase() ||
+    item.UniqueName?.toLowerCase();
+
+    return nombre.includes(query.toLowerCase());
+      }).slice(0, 15);
       setFilteredItems(resultados);
     } else {
       setFilteredItems([]);

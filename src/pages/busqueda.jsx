@@ -1,107 +1,117 @@
-// src/pages/busqueda.jsx
-import React, { useState } from 'react';
-import './busqueda.css';
+import React, { useState, useEffect } from 'react';
 
-function Busqueda() {
-  const [nombre, setNombre] = useState('');
+const Busqueda = () => {
+  const [nombreItem, setNombreItem] = useState('');
   const [resultados, setResultados] = useState([]);
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState(null);
+  const [nombresTraducidos, setNombresTraducidos] = useState({});
+
+  // Cargar traducciones desde el archivo JSON una sola vez
+  useEffect(() => {
+    const cargarTraducciones = async () => {
+      try {
+        const res = await fetch('/itemsTraducidos.json');
+        const data = await res.json();
+        setNombresTraducidos(data);
+      } catch (err) {
+        console.error('Error cargando nombres traducidos:', err);
+      }
+    };
+
+    cargarTraducciones();
+  }, []);
 
   const buscarItem = async () => {
-    if (!nombre.trim()) return;
+    if (!nombreItem.trim()) return;
 
     setCargando(true);
     setError(null);
     setResultados([]);
 
     try {
-      const response = await fetch(`https://albionsito-backend2.vercel.app/api/precios?id=${encodeURIComponent(nombre)}`);
+      const response = await fetch(`https://albionsito-backend2.vercel.app/api/item?name=${encodeURIComponent(nombreItem)}`);
 
       if (!response.ok) {
-        throw new Error('Error al consultar el servidor.');
+        throw new Error('Error al consultar el backend');
       }
 
       const data = await response.json();
-
-      if (!Array.isArray(data) || data.length === 0) {
-        setError('No se encontraron resultados para ese nombre.');
-        setCargando(false);
-        return;
-      }
-
+      console.log('[LOG] Resultados obtenidos:', data.length);
       setResultados(data);
     } catch (err) {
-      console.error('Error buscando precios:', err);
+      console.error('[ERROR] Falló la búsqueda:', err.message);
       setError('Ocurrió un error al buscar el ítem.');
     } finally {
       setCargando(false);
     }
   };
 
-  const handleKeyDown = (e) => {
-    if (e.key === 'Enter') {
-      buscarItem();
-    }
+  const manejarInput = (e) => {
+    setNombreItem(e.target.value);
+  };
+
+  const manejarSubmit = (e) => {
+    e.preventDefault();
+    buscarItem();
+  };
+
+  const obtenerNombreReal = (itemId) => {
+    return nombresTraducidos[itemId] || itemId;
   };
 
   return (
-    <div className="busqueda-container">
-      <h1 className="busqueda-titulo">🔍 Buscar Ítem en el Market</h1>
+    <div className="p-4">
+      <h1 className="text-2xl font-bold mb-4">🔍 Buscar ítem por nombre</h1>
 
-      <div className="busqueda-barra">
+      <form onSubmit={manejarSubmit} className="flex items-center gap-2 mb-4">
         <input
           type="text"
-          placeholder="Ej: T4 MOUNT HORSE"
-          value={nombre}
-          onChange={(e) => setNombre(e.target.value)}
-          onKeyDown={handleKeyDown}
+          value={nombreItem}
+          onChange={manejarInput}
+          placeholder="Ej: Caballo, Hacha, T8, etc."
+          className="p-2 border rounded w-full"
         />
-        <button onClick={buscarItem}>Buscar</button>
-      </div>
+        <button
+          type="submit"
+          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+        >
+          Buscar
+        </button>
+      </form>
 
       {cargando && (
-        <div className="busqueda-cargando">
-          <img src="/albion-loader.gif" alt="Cargando..." />
-          <p>Consultando precios...</p>
-        </div>
+        <div className="text-center mt-4 text-yellow-600">Cargando datos...</div>
       )}
 
       {error && (
-        <div className="busqueda-error">
-          ⚠️ {error}
-        </div>
+        <div className="text-center mt-4 text-red-600">{error}</div>
       )}
 
       {resultados.length > 0 && (
-        <div className="busqueda-tabla-wrapper">
-          <table className="busqueda-tabla">
-            <thead>
-              <tr>
-                <th>Ciudad</th>
-                <th>Precio de Venta</th>
-                <th>Precio de Compra</th>
-                <th>Fecha</th>
-              </tr>
-            </thead>
-            <tbody>
-              {resultados.map((item, index) => (
-                <tr key={index}>
-                  <td>{item.city}</td>
-                  <td>{item.sell_price_min.toLocaleString()} 💰</td>
-                  <td>{item.buy_price_max.toLocaleString()} 💰</td>
-                  <td>{new Date(item.datetime).toLocaleString()}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          <p className="busqueda-contador">
-            Artículos cargados: {resultados.length}
-          </p>
+        <div className="mt-6">
+          <h2 className="text-xl font-semibold mb-2">Resultados:</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+            {resultados.map((item, index) => (
+              <div key={index} className="p-4 border rounded shadow">
+                <div className="flex items-center gap-2 mb-2">
+                  <img
+                    src={`https://render.albiononline.com/v1/item/${item.item_id}.png`}
+                    alt={item.item_id}
+                    className="w-10 h-10"
+                  />
+                  <span className="font-bold">{obtenerNombreReal(item.item_id)}</span>
+                </div>
+                <p>🛒 Venta: {item.sell_price_min.toLocaleString()} (mín)</p>
+                <p>📦 Compra: {item.buy_price_max.toLocaleString()} (máx)</p>
+                <p>📍 Ciudad: {item.city}</p>
+              </div>
+            ))}
+          </div>
         </div>
       )}
     </div>
   );
-}
+};
 
 export default Busqueda;

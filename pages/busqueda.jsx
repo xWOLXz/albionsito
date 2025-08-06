@@ -27,21 +27,23 @@ export default function Busqueda() {
   }, []);
 
   useEffect(() => {
-    const buscar = () => {
-      const texto = search.toLowerCase();
-      const filtrados = items.filter(item =>
-        item.nombre && item.nombre.toLowerCase().includes(texto)
-      );
-      setFilteredItems(filtrados.slice(0, 50)); // Limita a 50 resultados
-    };
+    if (!search) {
+      setFilteredItems([]);
+      return;
+    }
 
-    buscar();
+    const texto = search.toLowerCase();
+    const resultados = items.filter(item =>
+      item.nombre && item.nombre.toLowerCase().includes(texto)
+    );
+
+    setFilteredItems(resultados);
   }, [search, items]);
 
   return (
     <div className="p-4">
       <h1 className="text-xl font-bold mb-4 text-center">🔍 Buscar Ítems de Albion</h1>
-      <SearchBar value={search} onChange={setSearch} placeholder="Escribe el nombre del ítem en español..." />
+      <SearchBar value={search} onChange={setSearch} placeholder="Escribe el nombre del ítem..." />
 
       {loading ? (
         <div className="flex justify-center mt-10">
@@ -49,9 +51,17 @@ export default function Busqueda() {
         </div>
       ) : (
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4 mt-6">
-          {filteredItems.map(item => (
-            <ItemCard key={item.id} item={item} />
-          ))}
+          {filteredItems.length > 0 ? (
+            filteredItems.map(item => (
+              <ItemCard key={item.id} item={item} />
+            ))
+          ) : (
+            search && (
+              <p className="text-center col-span-full text-gray-500">
+                No se encontraron ítems con ese nombre.
+              </p>
+            )
+          )}
         </div>
       )}
     </div>

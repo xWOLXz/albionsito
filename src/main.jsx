@@ -17,8 +17,6 @@ ReactDOM.createRoot(document.getElementById('root')).render(
       <Routes>
         <Route path="/" element={<Market />} />
         <Route path="/busqueda" element={<Busqueda />} />
-        <Route path="/blackmarket" element={<BlackMarket />} />
-        <Route path="/top" element={<TopGanancias />} />
       </Routes>
     </BrowserRouter>
   </React.StrictMode>,

@@ -5,21 +5,21 @@ const Busqueda = () => {
   const [resultados, setResultados] = useState([]);
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState(null);
-  const [nombresTraducidos, setNombresTraducidos] = useState({});
+  const [itemsData, setItemsData] = useState([]);
 
-  // Cargar traducciones desde el archivo JSON una sola vez
+  // Cargar items.json desde /public
   useEffect(() => {
-    const cargarTraducciones = async () => {
+    const cargarItems = async () => {
       try {
-        const res = await fetch('/itemsTraducidos.json');
+        const res = await fetch('/items.json');
         const data = await res.json();
-        setNombresTraducidos(data);
+        setItemsData(data);
       } catch (err) {
-        console.error('Error cargando nombres traducidos:', err);
+        console.error('Error cargando items.json:', err);
       }
     };
 
-    cargarTraducciones();
+    cargarItems();
   }, []);
 
   const buscarItem = async () => {
@@ -37,10 +37,9 @@ const Busqueda = () => {
       }
 
       const data = await response.json();
-      console.log('[LOG] Resultados obtenidos:', data.length);
       setResultados(data);
     } catch (err) {
-      console.error('[ERROR] Falló la búsqueda:', err.message);
+      console.error('Error al buscar:', err.message);
       setError('Ocurrió un error al buscar el ítem.');
     } finally {
       setCargando(false);
@@ -56,8 +55,9 @@ const Busqueda = () => {
     buscarItem();
   };
 
-  const obtenerNombreReal = (itemId) => {
-    return nombresTraducidos[itemId] || itemId;
+  const obtenerNombreYIcono = (itemId) => {
+    const item = itemsData.find((i) => i.id === itemId);
+    return item ? { nombre: item.nombre, icono: item.url || item.icono } : { nombre: itemId, icono: `https://render.albiononline.com/v1/item/${itemId}.png` };
   };
 
   return (
@@ -92,21 +92,24 @@ const Busqueda = () => {
         <div className="mt-6">
           <h2 className="text-xl font-semibold mb-2">Resultados:</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-            {resultados.map((item, index) => (
-              <div key={index} className="p-4 border rounded shadow">
-                <div className="flex items-center gap-2 mb-2">
-                  <img
-                    src={`https://render.albiononline.com/v1/item/${item.item_id}.png`}
-                    alt={item.item_id}
-                    className="w-10 h-10"
-                  />
-                  <span className="font-bold">{obtenerNombreReal(item.item_id)}</span>
+            {resultados.map((item, index) => {
+              const info = obtenerNombreYIcono(item.item_id);
+              return (
+                <div key={index} className="p-4 border rounded shadow">
+                  <div className="flex items-center gap-2 mb-2">
+                    <img
+                      src={info.icono}
+                      alt={item.item_id}
+                      className="w-10 h-10"
+                    />
+                    <span className="font-bold">{info.nombre}</span>
+                  </div>
+                  <p>🛒 Venta: {item.sell_price_min.toLocaleString()} (mín)</p>
+                  <p>📦 Compra: {item.buy_price_max.toLocaleString()} (máx)</p>
+                  <p>📍 Ciudad: {item.city}</p>
                 </div>
-                <p>🛒 Venta: {item.sell_price_min.toLocaleString()} (mín)</p>
-                <p>📦 Compra: {item.buy_price_max.toLocaleString()} (máx)</p>
-                <p>📍 Ciudad: {item.city}</p>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}

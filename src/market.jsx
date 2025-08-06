@@ -1,28 +1,5 @@
 import { useEffect, useState } from 'react';
 
-function MarketGeneral() {
-  const [itemsData, setItemsData] = useState([]);
-
-  useEffect(() => {
-    const fetchItems = async () => {
-      const res = await fetch('/items.json');
-      const data = await res.json();
-      setItemsData(data);
-    };
-
-    fetchItems();
-  }, []);
-
-  return (
-    <div>
-      <h1>Market General</h1>
-      {/* renderizar itemsData */}
-    </div>
-  );
-}
-
-export default MarketGeneral;
-
 const ciudades = ["Caerleon", "Bridgewatch", "Lymhurst", "Martlock", "Thetford", "Fort Sterling", "Brecilien"];
 const backends = [
   "https://albionsito-backend.onrender.com/items",
@@ -33,24 +10,38 @@ export default function Market() {
   const [query, setQuery] = useState('');
   const [filteredItems, setFilteredItems] = useState([]);
   const [itemPrices, setItemPrices] = useState({});
+  const [itemsData, setItemsData] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  // Buscar ítems por nombre
+  useEffect(() => {
+    const fetchItems = async () => {
+      try {
+        const res = await fetch('/items.json');
+        const data = await res.json();
+        setItemsData(data);
+      } catch (err) {
+        console.error("❌ Error cargando items.json:", err);
+      }
+    };
+
+    fetchItems();
+  }, []);
+
   useEffect(() => {
     if (query.length > 2) {
       const results = itemsData.filter(item =>
         item.LocalizedNames?.['ES-ES']?.toLowerCase().includes(query.toLowerCase())
-      ).slice(0, 15); // Máximo 15 resultados
+      ).slice(0, 15);
       setFilteredItems(results);
     } else {
       setFilteredItems([]);
     }
-  }, [query]);
+  }, [query, itemsData]);
 
-  // Buscar precios al hacer clic
   const fetchPrices = async (itemId) => {
     setLoading(true);
     let data = [];
+
     for (const url of backends) {
       try {
         const res = await fetch(`${url}?ids=${itemId}`);

@@ -1,132 +1,107 @@
-import { useEffect, useState } from 'react';
+// src/pages/busqueda.jsx
+import React, { useState } from 'react';
+import './busqueda.css';
 
-const Busqueda = () => {
-  const [items, setItems] = useState([]);
-  const [busqueda, setBusqueda] = useState('');
+function Busqueda() {
+  const [nombre, setNombre] = useState('');
   const [resultados, setResultados] = useState([]);
-  const [itemSeleccionado, setItemSeleccionado] = useState(null);
-  const [datosItem, setDatosItem] = useState(null);
   const [cargando, setCargando] = useState(false);
+  const [error, setError] = useState(null);
 
-  // Cargar items.json desde /public
-  useEffect(() => {
-    const cargarItems = async () => {
-      try {
-        const respuesta = await fetch('/items.json');
-        const data = await respuesta.json();
-        setItems(data);
-      } catch (error) {
-        console.error('Error cargando items.json:', error);
-      }
-    };
-    cargarItems();
-  }, []);
+  const buscarItem = async () => {
+    if (!nombre.trim()) return;
 
-  // Buscar ítems por nombre
-  useEffect(() => {
-    if (busqueda.length === 0) {
-      setResultados([]);
-      return;
-    }
-
-    const filtrados = items.filter((item) =>
-      item.nombre.toLowerCase().includes(busqueda.toLowerCase())
-    );
-    setResultados(filtrados.slice(0, 50)); // mostrar solo los 10 primeros
-  }, [busqueda, items]);
-
-  const seleccionarItem = async (item) => {
-    setItemSeleccionado(item);
-    setBusqueda(item.nombre);
-    setResultados([]);
     setCargando(true);
+    setError(null);
+    setResultados([]);
+
     try {
-      const respuesta = await fetch(`https://albionsito-backend2.vercel.app/api/precios?id=${item.id}`);
-      const data = await respuesta.json();
-      setDatosItem(data);
-    } catch (error) {
-      console.error('Error consultando precios:', error);
-      setDatosItem(null);
+      const response = await fetch(`https://albionsito-backend2.vercel.app/api/precios?id=${encodeURIComponent(nombre)}`);
+
+      if (!response.ok) {
+        throw new Error('Error al consultar el servidor.');
+      }
+
+      const data = await response.json();
+
+      if (!Array.isArray(data) || data.length === 0) {
+        setError('No se encontraron resultados para ese nombre.');
+        setCargando(false);
+        return;
+      }
+
+      setResultados(data);
+    } catch (err) {
+      console.error('Error buscando precios:', err);
+      setError('Ocurrió un error al buscar el ítem.');
     } finally {
       setCargando(false);
     }
   };
 
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      buscarItem();
+    }
+  };
+
   return (
-    <div className="p-4 max-w-4xl mx-auto">
-      <h1 className="text-2xl font-bold mb-4">🔍 Búsqueda de Ítems</h1>
+    <div className="busqueda-container">
+      <h1 className="busqueda-titulo">🔍 Buscar Ítem en el Market</h1>
 
-      <input
-        type="text"
-        placeholder="Escribe el nombre del ítem en español..."
-        value={busqueda}
-        onChange={(e) => {
-          setBusqueda(e.target.value);
-          setItemSeleccionado(null);
-          setDatosItem(null);
-        }}
-        className="w-full p-2 border rounded mb-2"
-      />
-
-      {resultados.length > 0 && (
-        <ul className="border rounded mb-4 bg-white max-h-60 overflow-y-auto">
-          {resultados.map((item) => (
-            <li
-              key={item.id}
-              className="p-2 cursor-pointer hover:bg-gray-200 flex items-center"
-              onClick={() => seleccionarItem(item)}
-            >
-              <img src={item.imagen} alt={item.nombre} className="w-6 h-6 mr-2" />
-              {item.nombre}
-            </li>
-          ))}
-        </ul>
-      )}
+      <div className="busqueda-barra">
+        <input
+          type="text"
+          placeholder="Ej: T4 MOUNT HORSE"
+          value={nombre}
+          onChange={(e) => setNombre(e.target.value)}
+          onKeyDown={handleKeyDown}
+        />
+        <button onClick={buscarItem}>Buscar</button>
+      </div>
 
       {cargando && (
-        <div className="text-center my-4">
-          <img src="/albion-loader.gif" alt="Cargando..." className="w-16 h-16 mx-auto" />
-          <p>Cargando precios...</p>
+        <div className="busqueda-cargando">
+          <img src="/albion-loader.gif" alt="Cargando..." />
+          <p>Consultando precios...</p>
         </div>
       )}
 
-      {datosItem && (
-        <div className="bg-gray-100 p-4 rounded shadow mt-4">
-          <h2 className="text-xl font-semibold mb-2 flex items-center">
-            <img
-              src={itemSeleccionado?.imagen}
-              alt={itemSeleccionado?.nombre}
-              className="w-8 h-8 mr-2"
-            />
-            {itemSeleccionado?.nombre}
-          </h2>
+      {error && (
+        <div className="busqueda-error">
+          ⚠️ {error}
+        </div>
+      )}
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <p className="font-medium">📉 Precio de venta más bajo:</p>
-              <p>{datosItem.sell_price_min?.toLocaleString() || 'N/A'} plata</p>
-              <p className="text-sm text-gray-600">Ciudad: {datosItem.sell_price_min_city || 'N/A'}</p>
-            </div>
-
-            <div>
-              <p className="font-medium">📈 Precio de compra más alto:</p>
-              <p>{datosItem.buy_price_max?.toLocaleString() || 'N/A'} plata</p>
-              <p className="text-sm text-gray-600">Ciudad: {datosItem.buy_price_max_city || 'N/A'}</p>
-            </div>
-
-            <div className="col-span-1 sm:col-span-2">
-              <p className="font-medium">💰 Margen de ganancia:</p>
-              <p>
-                {datosItem.margen !== undefined
-                  ? `${datosItem.margen.toLocaleString()} plata`
-                  : 'N/A'}
-              </p>
-            </div>
-          </div>
+      {resultados.length > 0 && (
+        <div className="busqueda-tabla-wrapper">
+          <table className="busqueda-tabla">
+            <thead>
+              <tr>
+                <th>Ciudad</th>
+                <th>Precio de Venta</th>
+                <th>Precio de Compra</th>
+                <th>Fecha</th>
+              </tr>
+            </thead>
+            <tbody>
+              {resultados.map((item, index) => (
+                <tr key={index}>
+                  <td>{item.city}</td>
+                  <td>{item.sell_price_min.toLocaleString()} 💰</td>
+                  <td>{item.buy_price_max.toLocaleString()} 💰</td>
+                  <td>{new Date(item.datetime).toLocaleString()}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <p className="busqueda-contador">
+            Artículos cargados: {resultados.length}
+          </p>
         </div>
       )}
     </div>
   );
-};
+}
 
 export default Busqueda;

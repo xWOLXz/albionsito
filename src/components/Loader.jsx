@@ -1,12 +1,7 @@
-import React from 'react'
-
-const Loader = () => {
+export default function Loader() {
   return (
-    <div style={{ textAlign: 'center' }}>
-      <img src="/albion-loader.gif" alt="Cargando..." width={100} />
-      <p>Cargando datos del mercado...</p>
+    <div className="flex justify-center items-center min-h-[50vh]">
+      <img src="/albion-loader.gif" alt="Cargando..." className="w-24 h-24" />
     </div>
-  )
+  );
 }
-
-export default Loader

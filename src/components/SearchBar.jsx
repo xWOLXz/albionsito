@@ -1,14 +1,23 @@
-import React from 'react'
+import { useState, useEffect } from 'react';
 
-const SearchBar = ({ onSearch }) => {
+export default function SearchBar({ onSearch }) {
+  const [term, setTerm] = useState('');
+
+  useEffect(() => {
+    const delayDebounce = setTimeout(() => {
+      onSearch(term);
+    }, 3000); // 3 segundos
+
+    return () => clearTimeout(delayDebounce);
+  }, [term]);
+
   return (
     <input
       type="text"
+      value={term}
+      onChange={(e) => setTerm(e.target.value)}
       placeholder="Buscar ítem..."
-      onChange={(e) => onSearch(e.target.value)}
-      style={{ width: '100%', marginBottom: '1rem' }}
+      className="w-full p-2 border rounded text-center"
     />
-  )
+  );
 }
-
-export default SearchBar

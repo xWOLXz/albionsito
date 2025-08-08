@@ -6,16 +6,16 @@ import Loader from '../components/Loader';
 const BACKEND1 = 'https://albionsito-backend.onrender.com';
 const BACKEND2 = 'https://albionsito-backend2.onrender.com';
 
-const CITIES = ["Caerleon","Bridgewatch","Lymhurst","Martlock","Thetford","Fort Sterling","Brecilien"];
+const CITIES = ["Caerleon", "Bridgewatch", "Lymhurst", "Martlock", "Thetford", "Fort Sterling", "Brecilien"];
 
 const cityColor = {
-  "Fort Sterling":"white",
-  "Lymhurst":"lightgreen",
-  "Bridgewatch":"orange",
-  "Martlock":"skyblue",
-  "Thetford":"violet",
-  "Caerleon":"black",
-  "Brecilien":"gray"
+  "Fort Sterling": "white",
+  "Lymhurst": "lightgreen",
+  "Bridgewatch": "orange",
+  "Martlock": "skyblue",
+  "Thetford": "violet",
+  "Caerleon": "black",
+  "Brecilien": "gray"
 };
 
 export default function Market() {
@@ -33,10 +33,7 @@ export default function Market() {
       try {
         const res = await fetch('/items.json');
         const data = await res.json();
-        const base = data.filter(it => {
-          const id = it.id || it.UniqueName || it.ID;
-          return /^T[4-8]_[A-Z0-9_]+$/.test(id);
-        });
+        const base = data.filter(it => /^T[4-8]_[A-Z0-9_]+$/.test(it.id || it.UniqueName || it.ID));
         setItems(base);
       } catch (err) {
         console.error('Error cargando items:', err);
@@ -45,22 +42,18 @@ export default function Market() {
       }
     })();
 
-    (async () => {
-      try { await fetch(`${BACKEND1}/api/init`); } catch (e) {}
-      try { await fetch(`${BACKEND2}/api/init`); } catch (e) {}
-    })();
+    // Warm-up a los dos backends
+    fetch(`${BACKEND1}/api/init`).catch(() => {});
+    fetch(`${BACKEND2}/api/init`).catch(() => {});
   }, []);
 
   const handleSearch = (term) => {
-    if (!term || term.trim().length < 1) {
-      setResults([]);
-      return;
-    }
-    const q = term.toLowerCase();
-    const filtered = items.filter(it => {
-      const nombre = (it.nombre || it.LocalizedNames?.['ES-ES'] || it.UniqueName || '').toLowerCase();
-      return nombre.includes(q);
-    }).slice(0, 30);
+    const q = term?.toLowerCase().trim();
+    if (!q) return setResults([]);
+
+    const filtered = items.filter(it =>
+      (it.nombre || it.UniqueName || '').toLowerCase().includes(q)
+    ).slice(0, 30);
     setResults(filtered);
   };
 
@@ -103,17 +96,22 @@ export default function Market() {
   return (
     <div className="container">
       <h1>🛒 Market</h1>
-      <div className="card" style={{marginTop:10}}>
+
+      <div className="card" style={{ marginTop: 10 }}>
         <SearchBar onSearch={handleSearch} placeholder="Escribe para buscar ítems (ej: Túnica, Bolsa...)" />
       </div>
 
-      <div style={{marginTop:12}}>
-        {loadingItems ? <Loader /> : (
+      <div style={{ marginTop: 12 }}>
+        {loadingItems ? (
+          <Loader />
+        ) : (
           <>
             {results.length === 0 && <div className="small">Escribe 3 segundos y verás resultados (tier base solamente).</div>}
             {results.length > 0 && (
-              <div className="grid" style={{marginTop:10}}>
-                {results.map(it => <ItemCard key={it.id || it.UniqueName} item={it} onSelect={selectItem} />)}
+              <div className="grid" style={{ marginTop: 10 }}>
+                {results.map(it => (
+                  <ItemCard key={it.id || it.UniqueName} item={it} onSelect={selectItem} />
+                ))}
               </div>
             )}
           </>
@@ -121,12 +119,18 @@ export default function Market() {
       </div>
 
       {selectedItem && (
-        <div style={{marginTop:20}} className="card">
-          <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
-            <div style={{display:'flex', gap:12, alignItems:'center'}}>
-              <img src={selectedItem.imagen || `https://render.albiononline.com/v1/item/${selectedItem.id || selectedItem.UniqueName}.png`} width={52} height={52} />
+        <div style={{ marginTop: 20 }} className="card">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+              <img
+                src={selectedItem.imagen || `https://render.albiononline.com/v1/item/${selectedItem.id || selectedItem.UniqueName}.png`}
+                width={52}
+                height={52}
+              />
               <div>
-                <div style={{fontWeight:700}}>{selectedItem.nombre || selectedItem.LocalizedNames?.['ES-ES'] || selectedItem.UniqueName}</div>
+                <div style={{ fontWeight: 700 }}>
+                  {selectedItem.nombre || selectedItem.LocalizedNames?.['ES-ES'] || selectedItem.UniqueName}
+                </div>
                 <div className="small">{selectedItem.id || selectedItem.UniqueName}</div>
               </div>
             </div>
@@ -143,23 +147,27 @@ export default function Market() {
             </div>
           </div>
 
-          <div style={{marginTop:12}}>
+          <div style={{ marginTop: 12 }}>
             <h3>Precios (Backend1 = fucsia, Backend2 = rosa)</h3>
             {loadingPrices && <Loader />}
 
-            <div style={{display:'flex', gap:12, marginTop:8}}>
-              <div style={{flex:1}}>
-                <div style={{background:'#6b0b6b', padding:8, borderRadius:6}}>Backend1 (AlbionData)</div>
+            <div style={{ display: 'flex', gap: 12, marginTop: 8 }}>
+              <div style={{ flex: 1 }}>
+                <div style={{ background: '#6b0b6b', padding: 8, borderRadius: 6 }}>Backend1 (AlbionData)</div>
                 {pricesFromBackend1 ? (
                   <PricesBlock data={pricesFromBackend1} source="backend1" />
-                ) : <div className="small">Sin datos (espera o recarga)</div>}
+                ) : (
+                  <div className="small">Sin datos (espera o recarga)</div>
+                )}
               </div>
 
-              <div style={{flex:1}}>
-                <div style={{background:'#ff8fc2', padding:8, borderRadius:6}}>Backend2 (Albion2D)</div>
+              <div style={{ flex: 1 }}>
+                <div style={{ background: '#ff8fc2', padding: 8, borderRadius: 6 }}>Backend2 (Albion2D)</div>
                 {pricesFromBackend2 ? (
                   <PricesBlock data={pricesFromBackend2} source="backend2" />
-                ) : <div className="small">Sin datos</div>}
+                ) : (
+                  <div className="small">Sin datos</div>
+                )}
               </div>
             </div>
           </div>
@@ -174,24 +182,26 @@ function PricesBlock({ data, source }) {
   if (data.error) return <div className="small">Error: {String(data.error)}</div>;
 
   const precios = data.precios || data.prices || data;
-  if (!precios || Object.keys(precios).length === 0) return <div className="small">No hay registros recientes</div>;
+  if (!precios || Object.keys(precios).length === 0) {
+    return <div className="small">No hay registros recientes</div>;
+  }
 
   return (
-    <div style={{marginTop:8}}>
+    <div style={{ marginTop: 8 }}>
       {Object.entries(precios).map(([city, obj]) => {
         const color = cityColor[city] || '#ddd';
         const shade = source === 'backend1' ? 'rgba(107,11,107,0.08)' : 'rgba(255,143,194,0.08)';
         return (
-          <div key={city} style={{padding:8, marginBottom:8, borderRadius:8, background:shade}}>
-            <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
-              <strong style={{color}}>{city}</strong>
+          <div key={city} style={{ padding: 8, marginBottom: 8, borderRadius: 8, background: shade }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <strong style={{ color }}>{city}</strong>
               <span className="small">{obj.actualizado || obj.updated || ''}</span>
             </div>
 
-            <div style={{display:'flex', gap:12, marginTop:6}}>
-              <div style={{flex:1}}>
+            <div style={{ display: 'flex', gap: 12, marginTop: 6 }}>
+              <div style={{ flex: 1 }}>
                 <div className="small">Orden venta</div>
-                {(obj.orden_venta || obj.sell || []).slice(0,7).map((o, idx) => (
+                {(obj.orden_venta || obj.sell || []).slice(0, 7).map((o, idx) => (
                   <div key={idx} className="result-row">
                     <span>•</span>
                     <span>{(o.precio || o.price || o).toLocaleString()}</span>
@@ -199,9 +209,10 @@ function PricesBlock({ data, source }) {
                   </div>
                 ))}
               </div>
-              <div style={{flex:1}}>
+
+              <div style={{ flex: 1 }}>
                 <div className="small">Orden compra</div>
-                {(obj.orden_compra || obj.buy || []).slice(0,7).map((o, idx) => (
+                {(obj.orden_compra || obj.buy || []).slice(0, 7).map((o, idx) => (
                   <div key={idx} className="result-row">
                     <span>•</span>
                     <span>{(o.precio || o.price || o).toLocaleString()}</span>
@@ -215,4 +226,4 @@ function PricesBlock({ data, source }) {
       })}
     </div>
   );
-}
+  }

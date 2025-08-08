@@ -68,6 +68,7 @@ export default function Market() {
     setPricesFromBackend1(null);
     setPricesFromBackend2(null);
 
+    // Backend1 (AlbionData)
     try {
       const res1 = await fetch(`${BACKEND1}/api/prices?itemId=${encodeURIComponent(itemId)}&quality=${qualityToUse}`);
       const json1 = await res1.json();
@@ -76,10 +77,30 @@ export default function Market() {
       setPricesFromBackend1({ error: String(err) });
     }
 
+    // Backend2 (Albion2D) con adaptación de formato
     try {
       const res2 = await fetch(`${BACKEND2}/api/prices?itemId=${encodeURIComponent(itemId)}&quality=${qualityToUse}`);
       const json2 = await res2.json();
-      setPricesFromBackend2(json2);
+
+      if (Array.isArray(json2)) {
+        const adapted = {};
+        json2.forEach(entry => {
+          adapted[entry.city] = {
+            sell: entry.sell_price_min ? [{
+              price: entry.sell_price_min,
+              date: entry.sell_price_min_date
+            }] : [],
+            buy: entry.buy_price_max ? [{
+              price: entry.buy_price_max,
+              date: entry.buy_price_max_date
+            }] : [],
+            updated: entry.sell_price_min_date || entry.buy_price_max_date || entry.updated_at
+          };
+        });
+        setPricesFromBackend2(adapted);
+      } else {
+        setPricesFromBackend2(json2);
+      }
     } catch (err) {
       setPricesFromBackend2({ error: String(err) });
     } finally {

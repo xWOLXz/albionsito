@@ -6,8 +6,6 @@ import Loader from '../components/Loader';
 const BACKEND1 = 'https://albionsito-backend.onrender.com';
 const BACKEND2 = 'https://albionsito-backend2.onrender.com';
 
-const CITIES = ["Caerleon", "Bridgewatch", "Lymhurst", "Martlock", "Thetford", "Fort Sterling", "Brecilien"];
-
 const cityColor = {
   "Fort Sterling": "white",
   "Lymhurst": "lightgreen",
@@ -68,39 +66,17 @@ export default function Market() {
     setPricesFromBackend1(null);
     setPricesFromBackend2(null);
 
-    // Backend1 (AlbionData)
     try {
       const res1 = await fetch(`${BACKEND1}/api/prices?itemId=${encodeURIComponent(itemId)}&quality=${qualityToUse}`);
-      const json1 = await res1.json();
-      setPricesFromBackend1(json1);
+      setPricesFromBackend1(await res1.json());
     } catch (err) {
       setPricesFromBackend1({ error: String(err) });
     }
 
-    // Backend2 (Albion2D) con adaptación de formato
     try {
       const res2 = await fetch(`${BACKEND2}/api/prices?itemId=${encodeURIComponent(itemId)}&quality=${qualityToUse}`);
       const json2 = await res2.json();
-
-      if (Array.isArray(json2)) {
-        const adapted = {};
-        json2.forEach(entry => {
-          adapted[entry.city] = {
-            sell: entry.sell_price_min ? [{
-              price: entry.sell_price_min,
-              date: entry.sell_price_min_date
-            }] : [],
-            buy: entry.buy_price_max ? [{
-              price: entry.buy_price_max,
-              date: entry.buy_price_max_date
-            }] : [],
-            updated: entry.sell_price_min_date || entry.buy_price_max_date || entry.updated_at
-          };
-        });
-        setPricesFromBackend2(adapted);
-      } else {
-        setPricesFromBackend2(json2);
-      }
+      setPricesFromBackend2(json2);
     } catch (err) {
       setPricesFromBackend2({ error: String(err) });
     } finally {
@@ -126,7 +102,7 @@ export default function Market() {
           <Loader />
         ) : (
           <>
-            {results.length === 0 && <div className="small">Escribe 3 segundos y verás resultados (tier base solamente).</div>}
+            {results.length === 0 && <div className="small">Escribe 3 segundos y verás resultados.</div>}
             {results.length > 0 && (
               <div className="grid" style={{ marginTop: 10 }}>
                 {results.map(it => (
@@ -168,28 +144,13 @@ export default function Market() {
           </div>
 
           <div style={{ marginTop: 12 }}>
-            <h3>Precios (Backend1 = fucsia, Backend2 = rosa)</h3>
             {loadingPrices && <Loader />}
-
-            <div style={{ display: 'flex', gap: 12, marginTop: 8 }}>
-              <div style={{ flex: 1 }}>
-                <div style={{ background: '#6b0b6b', padding: 8, borderRadius: 6 }}>Backend1 (AlbionData)</div>
-                {pricesFromBackend1 ? (
-                  <PricesBlock data={pricesFromBackend1} source="backend1" />
-                ) : (
-                  <div className="small">Sin datos (espera o recarga)</div>
-                )}
-              </div>
-
-              <div style={{ flex: 1 }}>
-                <div style={{ background: '#ff8fc2', padding: 8, borderRadius: 6 }}>Backend2 (Albion2D)</div>
-                {pricesFromBackend2 ? (
-                  <PricesBlock data={pricesFromBackend2} source="backend2" />
-                ) : (
-                  <div className="small">Sin datos</div>
-                )}
-              </div>
-            </div>
+            {!loadingPrices && (
+              <>
+                <h3>💹 Comparativa por ciudad</h3>
+                <PricesBlock backend1={pricesFromBackend1} backend2={pricesFromBackend2} />
+              </>
+            )}
           </div>
         </div>
       )}
@@ -197,58 +158,53 @@ export default function Market() {
   );
 }
 
-function PricesBlock({ data, source }) {
-  if (!data) return null;
-  if (data.error) return <div className="small">Error: {String(data.error)}</div>;
+function PricesBlock({ backend1, backend2 }) {
+  if (!backend1 && !backend2) return null;
 
-  const precios = data.precios || data.prices || data;
-  if (!precios || Object.keys(precios).length === 0) {
-    return <div className="small">No hay registros recientes</div>;
-  }
+  const precios1 = backend1?.precios || {};
+  const precios2 = backend2?.prices || backend2?.precios || {};
 
-  // Función para formatear fecha a YYYY-MM-DD HH:mm
-  const formatDate = (dateStr) => {
-    if (!dateStr) return '';
-    const d = new Date(dateStr);
-    if (isNaN(d)) return dateStr;
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
-  };
+  const ciudades = Array.from(new Set([
+    ...Object.keys(precios1),
+    ...Object.keys(precios2)
+  ]));
 
   return (
     <div style={{ marginTop: 8 }}>
-      {Object.entries(precios).map(([city, obj]) => {
+      {ciudades.map(city => {
+        const c1 = precios1[city] || {};
+        const c2 = precios2[city] || {};
         const color = cityColor[city] || '#ddd';
-        const shade = source === 'backend1' ? 'rgba(107,11,107,0.08)' : 'rgba(255,143,194,0.08)';
+
         return (
-          <div key={city} style={{ padding: 8, marginBottom: 8, borderRadius: 8, background: shade }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div key={city} style={{ padding: 8, marginBottom: 12, borderRadius: 8, background: 'rgba(255,255,255,0.05)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
               <strong style={{ color }}>{city}</strong>
-              <span className="small">{formatDate(obj.actualizado || obj.updated)}</span>
+              <span className="small">
+                {c1.actualizado || c2.updated || ''}
+              </span>
             </div>
 
-            <div style={{ display: 'flex', gap: 12, marginTop: 6 }}>
-              <div style={{ flex: 1 }}>
-                <div className="small">Orden venta</div>
-                {(obj.orden_venta || obj.sell || []).slice(0, 5).map((o, idx) => (
-                  <div key={idx} className="result-row">
-                    <span>•</span>
-                    <span>{(o.precio || o.price).toLocaleString()}</span>
-                    <span className="small">{formatDate(o.fecha || o.date)}</span>
-                  </div>
+            <table style={{ width: '100%', marginTop: 6, borderCollapse: 'collapse' }}>
+              <thead>
+                <tr>
+                  <th style={{ background: '#6b0b6b', color: 'white' }}>Venta (B1)</th>
+                  <th style={{ background: '#ff8fc2', color: 'black' }}>Venta (B2)</th>
+                  <th style={{ background: '#6b0b6b', color: 'white' }}>Compra (B1)</th>
+                  <th style={{ background: '#ff8fc2', color: 'black' }}>Compra (B2)</th>
+                </tr>
+              </thead>
+              <tbody>
+                {Array.from({ length: 5 }).map((_, idx) => (
+                  <tr key={idx}>
+                    <td>{c1.orden_venta?.[idx]?.precio?.toLocaleString() || '-'}</td>
+                    <td>{c2.sell?.[idx]?.price?.toLocaleString() || '-'}</td>
+                    <td>{c1.orden_compra?.[idx]?.precio?.toLocaleString() || '-'}</td>
+                    <td>{c2.buy?.[idx]?.price?.toLocaleString() || '-'}</td>
+                  </tr>
                 ))}
-              </div>
-
-              <div style={{ flex: 1 }}>
-                <div className="small">Orden compra</div>
-                {(obj.orden_compra || obj.buy || []).slice(0, 5).map((o, idx) => (
-                  <div key={idx} className="result-row">
-                    <span>•</span>
-                    <span>{(o.precio || o.price).toLocaleString()}</span>
-                    <span className="small">{formatDate(o.fecha || o.date)}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
+              </tbody>
+            </table>
           </div>
         );
       })}

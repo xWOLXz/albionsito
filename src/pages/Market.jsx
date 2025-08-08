@@ -158,53 +158,85 @@ export default function Market() {
   );
 }
 
-function PricesBlock({ backend1, backend2 }) {
-  if (!backend1 && !backend2) return null;
+function PricesBlock({ data, source }) {
+  if (!data) return null;
+  if (data.error) return <div className="small">Error: {String(data.error)}</div>;
 
-  const precios1 = backend1?.precios || {};
-  const precios2 = backend2?.prices || backend2?.precios || {};
-
-  const ciudades = Array.from(new Set([
-    ...Object.keys(precios1),
-    ...Object.keys(precios2)
-  ]));
+  const precios = data.precios || data.prices || data;
+  if (!precios || Object.keys(precios).length === 0) {
+    return <div className="small">No hay registros recientes</div>;
+  }
 
   return (
     <div style={{ marginTop: 8 }}>
-      {ciudades.map(city => {
-        const c1 = precios1[city] || {};
-        const c2 = precios2[city] || {};
+      {Object.entries(precios).map(([city, obj]) => {
         const color = cityColor[city] || '#ddd';
+        const shade =
+          source === 'backend1'
+            ? 'rgba(107,11,107,0.08)'
+            : 'rgba(255,143,194,0.08)';
+
+        // Asegurar ordenamiento
+        const ordenVenta = [...(obj.orden_venta || obj.sell || [])]
+          .sort((a, b) => (a.precio || a.price) - (b.precio || b.price))
+          .slice(0, 7);
+
+        const ordenCompra = [...(obj.orden_compra || obj.buy || [])]
+          .sort((a, b) => (b.precio || b.price) - (a.precio || a.price))
+          .slice(0, 7);
 
         return (
-          <div key={city} style={{ padding: 8, marginBottom: 12, borderRadius: 8, background: 'rgba(255,255,255,0.05)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+          <div
+            key={city}
+            style={{
+              padding: 8,
+              marginBottom: 8,
+              borderRadius: 8,
+              background: shade,
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+              }}
+            >
               <strong style={{ color }}>{city}</strong>
               <span className="small">
-                {c1.actualizado || c2.updated || ''}
+                {obj.actualizado || obj.updated || ''}
               </span>
             </div>
 
-            <table style={{ width: '100%', marginTop: 6, borderCollapse: 'collapse' }}>
-              <thead>
-                <tr>
-                  <th style={{ background: '#6b0b6b', color: 'white' }}>Venta (B1)</th>
-                  <th style={{ background: '#ff8fc2', color: 'black' }}>Venta (B2)</th>
-                  <th style={{ background: '#6b0b6b', color: 'white' }}>Compra (B1)</th>
-                  <th style={{ background: '#ff8fc2', color: 'black' }}>Compra (B2)</th>
-                </tr>
-              </thead>
-              <tbody>
-                {Array.from({ length: 5 }).map((_, idx) => (
-                  <tr key={idx}>
-                    <td>{c1.orden_venta?.[idx]?.precio?.toLocaleString() || '-'}</td>
-                    <td>{c2.sell?.[idx]?.price?.toLocaleString() || '-'}</td>
-                    <td>{c1.orden_compra?.[idx]?.precio?.toLocaleString() || '-'}</td>
-                    <td>{c2.buy?.[idx]?.price?.toLocaleString() || '-'}</td>
-                  </tr>
+            <div style={{ display: 'flex', gap: 12, marginTop: 6 }}>
+              {/* Columna de orden venta */}
+              <div style={{ flex: 1 }}>
+                <div className="small">Orden venta</div>
+                {ordenVenta.map((o, idx) => (
+                  <div key={idx} className="result-row">
+                    <span>•</span>
+                    <span>
+                      {(o.precio || o.price || o).toLocaleString()}
+                    </span>
+                    <span className="small">{o.fecha || o.date || ''}</span>
+                  </div>
                 ))}
-              </tbody>
-            </table>
+              </div>
+
+              {/* Columna de orden compra */}
+              <div style={{ flex: 1 }}>
+                <div className="small">Orden compra</div>
+                {ordenCompra.map((o, idx) => (
+                  <div key={idx} className="result-row">
+                    <span>•</span>
+                    <span>
+                      {(o.precio || o.price || o).toLocaleString()}
+                    </span>
+                    <span className="small">{o.fecha || o.date || ''}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         );
       })}

@@ -206,6 +206,14 @@ function PricesBlock({ data, source }) {
     return <div className="small">No hay registros recientes</div>;
   }
 
+  // Función para formatear fecha a YYYY-MM-DD HH:mm
+  const formatDate = (dateStr) => {
+    if (!dateStr) return '';
+    const d = new Date(dateStr);
+    if (isNaN(d)) return dateStr;
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+  };
+
   return (
     <div style={{ marginTop: 8 }}>
       {Object.entries(precios).map(([city, obj]) => {
@@ -215,28 +223,28 @@ function PricesBlock({ data, source }) {
           <div key={city} style={{ padding: 8, marginBottom: 8, borderRadius: 8, background: shade }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <strong style={{ color }}>{city}</strong>
-              <span className="small">{obj.actualizado || obj.updated || ''}</span>
+              <span className="small">{formatDate(obj.actualizado || obj.updated)}</span>
             </div>
 
             <div style={{ display: 'flex', gap: 12, marginTop: 6 }}>
               <div style={{ flex: 1 }}>
                 <div className="small">Orden venta</div>
-                {(obj.orden_venta || obj.sell || []).slice(0, 7).map((o, idx) => (
+                {(obj.orden_venta || obj.sell || []).slice(0, 5).map((o, idx) => (
                   <div key={idx} className="result-row">
                     <span>•</span>
-                    <span>{(o.precio || o.price || o).toLocaleString()}</span>
-                    <span className="small">{o.fecha || o.date || ''}</span>
+                    <span>{(o.precio || o.price).toLocaleString()}</span>
+                    <span className="small">{formatDate(o.fecha || o.date)}</span>
                   </div>
                 ))}
               </div>
 
               <div style={{ flex: 1 }}>
                 <div className="small">Orden compra</div>
-                {(obj.orden_compra || obj.buy || []).slice(0, 7).map((o, idx) => (
+                {(obj.orden_compra || obj.buy || []).slice(0, 5).map((o, idx) => (
                   <div key={idx} className="result-row">
                     <span>•</span>
-                    <span>{(o.precio || o.price || o).toLocaleString()}</span>
-                    <span className="small">{o.fecha || o.date || ''}</span>
+                    <span>{(o.precio || o.price).toLocaleString()}</span>
+                    <span className="small">{formatDate(o.fecha || o.date)}</span>
                   </div>
                 ))}
               </div>

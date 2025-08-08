@@ -42,7 +42,6 @@ export default function Market() {
       }
     })();
 
-    // Warm-up a los dos backends
     fetch(`${BACKEND1}/api/init`).catch(() => {});
     fetch(`${BACKEND2}/api/init`).catch(() => {});
   }, []);
@@ -129,7 +128,7 @@ export default function Market() {
               />
               <div>
                 <div style={{ fontWeight: 700 }}>
-                  {selectedItem.nombre || selectedItem.LocalizedNames?.['ES-ES'] || selectedItem.UniqueName}
+                  {selectedItem.nombre || selectedItem.id || selectedItem.UniqueName}
                 </div>
                 <div className="small">{selectedItem.id || selectedItem.UniqueName}</div>
               </div>
@@ -226,4 +225,4 @@ function PricesBlock({ data, source }) {
       })}
     </div>
   );
-  }
+}

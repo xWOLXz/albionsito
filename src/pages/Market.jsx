@@ -1,3 +1,4 @@
+// src/pages/Market.jsx
 import React, { useEffect, useState } from 'react';
 import SearchBar from '../components/SearchBar';
 import ItemCard from '../components/ItemCard';
@@ -16,6 +17,15 @@ const cityColor = {
   "Brecilien": "gray"
 };
 
+// Símbolos de fuente
+const SRC = {
+  backend1: '①',
+  backend2: '②'
+};
+
+// número máximo por ciudad por tipo
+const MAX_PER_CITY = 5;
+
 export default function Market() {
   const [items, setItems] = useState([]);
   const [results, setResults] = useState([]);
@@ -23,15 +33,16 @@ export default function Market() {
   const [selectedItem, setSelectedItem] = useState(null);
   const [quality, setQuality] = useState(1);
   const [loadingPrices, setLoadingPrices] = useState(false);
-  const [pricesFromBackend1, setPricesFromBackend1] = useState(null);
-  const [pricesFromBackend2, setPricesFromBackend2] = useState(null);
+  const [mergedPrices, setMergedPrices] = useState(null);
+  const [rawBackend1, setRawBackend1] = useState(null);
+  const [rawBackend2, setRawBackend2] = useState(null);
 
   useEffect(() => {
     (async () => {
       try {
         const res = await fetch('/items.json');
         const data = await res.json();
-        // Regex con _ (asegura IDs como T6_MAIN_AXE)
+        // Permitir IDs con guion bajo
         const base = data.filter(it => /^T[4-8]_[A-Z0-9_]+$/.test(it.id || it.UniqueName || it.ID));
         setItems(base);
       } catch (err) {
@@ -41,6 +52,7 @@ export default function Market() {
       }
     })();
 
+    // ping a backends (opcional)
     fetch(`${BACKEND1}/api/init`).catch(() => {});
     fetch(`${BACKEND2}/api/init`).catch(() => {});
   }, []);
@@ -61,38 +73,198 @@ export default function Market() {
     fetchPricesForItem(item, 1);
   };
 
-  const fetchPricesForItem = async (item, qualityToUse = 1) => {
+  async function fetchPricesForItem(item, qualityToUse = 1) {
     const itemId = item.id || item.UniqueName || item.ID;
     setLoadingPrices(true);
-    setPricesFromBackend1(null);
-    setPricesFromBackend2(null);
+    setMergedPrices(null);
+    setRawBackend1(null);
+    setRawBackend2(null);
 
     try {
-      const res1 = await fetch(`${BACKEND1}/api/prices?itemId=${encodeURIComponent(itemId)}&quality=${qualityToUse}`);
-      const json1 = await res1.json();
-      console.log('DEBUG backend1 response:', json1);
-      setPricesFromBackend1(json1);
-    } catch (err) {
-      setPricesFromBackend1({ error: String(err) });
-    }
+      // Llamadas en paralelo
+      const [r1, r2] = await Promise.allSettled([
+        fetch(`${BACKEND1}/api/prices?itemId=${encodeURIComponent(itemId)}&quality=${qualityToUse}`),
+        fetch(`${BACKEND2}/api/prices?itemId=${encodeURIComponent(itemId)}&quality=${qualityToUse}`)
+      ]);
 
-    try {
-      const res2 = await fetch(`${BACKEND2}/api/prices?itemId=${encodeURIComponent(itemId)}&quality=${qualityToUse}`);
-      const json2 = await res2.json();
-      console.log('DEBUG backend2 response:', json2);
-      setPricesFromBackend2(json2);
+      let json1 = null;
+      let json2 = null;
+
+      if (r1.status === 'fulfilled') {
+        try { json1 = await r1.value.json(); } catch (e) { json1 = null; console.warn('backend1 parse error', e); }
+      } else {
+        console.warn('backend1 error', r1.reason);
+      }
+
+      if (r2.status === 'fulfilled') {
+        try { json2 = await r2.value.json(); } catch (e) { json2 = null; console.warn('backend2 parse error', e); }
+      } else {
+        console.warn('backend2 error', r2.reason);
+      }
+
+      setRawBackend1(json1);
+      setRawBackend2(json2);
+
+      const norm1 = normalizeBackend1(json1);
+      const norm2 = normalizeBackend2(json2);
+
+      const merged = mergeNormalized(norm1, norm2);
+      setMergedPrices(merged);
     } catch (err) {
-      setPricesFromBackend2({ error: String(err) });
+      console.error('Error fetching prices:', err);
     } finally {
       setLoadingPrices(false);
     }
-  };
+  }
 
-  const changeQuality = (q) => {
-    setQuality(q);
-    if (selectedItem) fetchPricesForItem(selectedItem, q);
-  };
+  // --- Normalizadores ---
+  // convierte respuesta backend1 -> { City: { sell: [{precio, fecha, fuentes}], buy: [...], actualizado } }
+  function normalizeBackend1(resp) {
+    const out = {};
+    if (!resp) return out;
+    const payload = resp.prices || resp; // backend1 responde { item, prices: {...} }
+    if (!payload || typeof payload !== 'object') return out;
 
+    for (const [city, info] of Object.entries(payload)) {
+      if (!city) continue;
+      const sellArray = info.sell || info.orden_venta || [];
+      const buyArray = info.buy || info.orden_compra || [];
+      out[city] = { sell: [], buy: [], actualizado: info.updated || info.actualizado || info.updated_at || info.updatedAt || info.updated || null };
+
+      // sell items
+      for (const s of sellArray) {
+        const precio = (s.price ?? s.precio ?? s.sell_price_min ?? s.sell_price) || 0;
+        const fecha = s.date ?? s.fecha ?? s.sell_price_min_date ?? s.date_time ?? new Date().toISOString();
+        out[city].sell.push({ precio: Number(precio), fecha: fecha, fuentes: [SRC.backend1] });
+      }
+
+      for (const b of buyArray) {
+        const precio = (b.price ?? b.precio ?? b.buy_price_max ?? b.buy_price) || 0;
+        const fecha = b.date ?? b.fecha ?? b.buy_price_max_date ?? b.date ?? new Date().toISOString();
+        out[city].buy.push({ precio: Number(precio), fecha: fecha, fuentes: [SRC.backend1] });
+      }
+    }
+    return out;
+  }
+
+  // convierte respuesta backend2 -> mismo esquema
+  function normalizeBackend2(resp) {
+    const out = {};
+    if (!resp) return out;
+    const payload = resp.precios || resp.prices || resp; // backend2 => { updated, precios: {...} }
+    if (!payload || typeof payload !== 'object') return out;
+
+    for (const [city, info] of Object.entries(payload)) {
+      if (!city) continue;
+      const sellArray = info.orden_venta || info.sell || [];
+      const buyArray = info.orden_compra || info.buy || [];
+      out[city] = { sell: [], buy: [], actualizado: info.actualizado || info.updated || info.actualizado || null };
+
+      for (const s of sellArray) {
+        const precio = (s.precio ?? s.price ?? s.sell_price_min ?? s) || 0;
+        const fecha = s.fecha ?? s.date ?? s.sell_price_min_date ?? new Date().toISOString();
+        out[city].sell.push({ precio: Number(precio), fecha: fecha, fuentes: [SRC.backend2] });
+      }
+
+      for (const b of buyArray) {
+        const precio = (b.precio ?? b.price ?? b.buy_price_max ?? b) || 0;
+        const fecha = b.fecha ?? b.date ?? b.buy_price_max_date ?? new Date().toISOString();
+        out[city].buy.push({ precio: Number(precio), fecha: fecha, fuentes: [SRC.backend2] });
+      }
+    }
+    return out;
+  }
+
+  // --- Merge ---
+  // Combina normalizados por ciudad, une entradas iguales (misma precio+fecha) agregando fuentes,
+  // ordena por fecha descendente (más reciente primero) y limita a MAX_PER_CITY
+  function mergeNormalized(n1, n2) {
+    const cities = new Set([...Object.keys(n1 || {}), ...Object.keys(n2 || {})]);
+    const result = {};
+
+    for (const city of cities) {
+      const listSell = [];
+      const listBuy = [];
+      const addToList = (targetList, entry) => {
+        // key por precio + fecha ISO coercion
+        const key = `${entry.precio}||${new Date(entry.fecha).toISOString()}`;
+        const existing = targetList.find(x => x._key === key);
+        if (existing) {
+          // agregar fuente si no existe
+          for (const f of entry.fuentes) {
+            if (!existing.fuentes.includes(f)) existing.fuentes.push(f);
+          }
+        } else {
+          targetList.push({ ...entry, _key: key });
+        }
+      };
+
+      const srcSell1 = (n1[city]?.sell) || [];
+      const srcSell2 = (n2[city]?.sell) || [];
+      const srcBuy1 = (n1[city]?.buy) || [];
+      const srcBuy2 = (n2[city]?.buy) || [];
+
+      srcSell1.forEach(s => addToList(listSell, s));
+      srcSell2.forEach(s => addToList(listSell, s));
+      srcBuy1.forEach(b => addToList(listBuy, b));
+      srcBuy2.forEach(b => addToList(listBuy, b));
+
+      // ordenar por fecha (desc)
+      listSell.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+      listBuy.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+
+      // quitar _key antes de devolver y limitar
+      const sellFinal = listSell.slice(0, MAX_PER_CITY).map(({ _key, ...rest }) => rest);
+      const buyFinal = listBuy.slice(0, MAX_PER_CITY).map(({ _key, ...rest }) => rest);
+
+      // decidir fecha actualizado: la máxima entre ambos
+      const candDates = [
+        n1[city]?.actualizado,
+        n2[city]?.actualizado,
+        ...(sellFinal.map(x => x.fecha)),
+        ...(buyFinal.map(x => x.fecha))
+      ].filter(Boolean).map(d => new Date(d));
+      const updated = candDates.length ? new Date(Math.max(...candDates.map(d => d.getTime()))) : null;
+
+      result[city] = {
+        orden_venta: sellFinal,
+        orden_compra: buyFinal,
+        actualizado: updated ? updated.toISOString() : null
+      };
+    }
+
+    // ordenar keys (opcional): por ciudad alfabéticamente
+    const ordered = {};
+    Object.keys(result).sort().forEach(k => ordered[k] = result[k]);
+
+    return ordered;
+  }
+
+  // Helper: fecha legible y relativo
+  function formatDateIso(iso) {
+    if (!iso) return '';
+    try {
+      return new Date(iso).toLocaleString();
+    } catch (e) {
+      return iso;
+    }
+  }
+
+  function timeAgo(iso) {
+    if (!iso) return '';
+    const d = new Date(iso);
+    if (isNaN(d)) return '';
+    const diff = Date.now() - d.getTime();
+    const minutes = Math.floor(diff / 60000);
+    if (minutes < 1) return 'justo ahora';
+    if (minutes < 60) return `${minutes}m`;
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `${hours}h ${minutes % 60}m`;
+    const days = Math.floor(hours / 24);
+    return `${days}d ${hours % 24}h`;
+  }
+
+  // Render
   return (
     <div className="container">
       <h1>🛒 Market</h1>
@@ -137,7 +309,11 @@ export default function Market() {
 
             <div>
               <label className="small">Encantamiento: </label>
-              <select value={quality} onChange={(e) => changeQuality(Number(e.target.value))}>
+              <select value={quality} onChange={(e) => {
+                const q = Number(e.target.value);
+                setQuality(q);
+                if (selectedItem) fetchPricesForItem(selectedItem, q);
+              }}>
                 <option value={1}>Base</option>
                 <option value={2}>+1</option>
                 <option value={3}>+2</option>
@@ -151,87 +327,61 @@ export default function Market() {
             {loadingPrices && <Loader />}
             {!loadingPrices && (
               <>
-                <h3>💹 Comparativa por ciudad</h3>
-
-                {/* Mostrar ambos backends (uno por sección) */}
-                <div style={{ display: 'grid', gap: 10 }}>
-                  <div>
-                    <strong>Fuente: Backend 1</strong>
-                    <PricesBlock data={pricesFromBackend1} source="backend1" />
-                  </div>
-
-                  <div>
-                    <strong>Fuente: Backend 2</strong>
-                    <PricesBlock data={pricesFromBackend2} source="backend2" />
-                  </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <h3>💹 Movimientos por ciudad</h3>
+                  <div className="small">① backend1 &nbsp;&nbsp; ② backend2</div>
                 </div>
+
+                {!mergedPrices && <div className="small">Selecciona un ítem para ver precios.</div>}
+
+                {mergedPrices && (
+                  <div style={{ marginTop: 8 }}>
+                    {Object.entries(mergedPrices).map(([city, obj]) => {
+                      const color = cityColor[city] || '#ddd';
+                      return (
+                        <div key={city} style={{ padding: 8, marginBottom: 8, borderRadius: 8, background: 'rgba(255,255,255,0.03)' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <strong style={{ color }}>{city}</strong>
+                            <span className="small">{obj.actualizado ? `${formatDateIso(obj.actualizado)} (${timeAgo(obj.actualizado)})` : ''}</span>
+                          </div>
+
+                          <div style={{ display: 'flex', gap: 12, marginTop: 6 }}>
+                            <div style={{ flex: 1 }}>
+                              <div className="small">Orden venta (últimos {MAX_PER_CITY})</div>
+                              {obj.orden_venta.length === 0 && <div className="small">—</div>}
+                              {obj.orden_venta.map((o, idx) => (
+                                <div key={idx} className="result-row" style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                                  <span style={{ width: 8 }}>•</span>
+                                  <div style={{ flex: 1 }}>{(o.precio || 0).toLocaleString()}</div>
+                                  <div className="small" style={{ minWidth: 170, textAlign: 'right' }}>{formatDateIso(o.fecha)} <span style={{ marginLeft: 8 }}>({timeAgo(o.fecha)})</span></div>
+                                  <div style={{ marginLeft: 8 }}>{(o.fuentes || []).join(' ')}</div>
+                                </div>
+                              ))}
+                            </div>
+
+                            <div style={{ flex: 1 }}>
+                              <div className="small">Orden compra (últimos {MAX_PER_CITY})</div>
+                              {obj.orden_compra.length === 0 && <div className="small">—</div>}
+                              {obj.orden_compra.map((o, idx) => (
+                                <div key={idx} className="result-row" style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                                  <span style={{ width: 8 }}>•</span>
+                                  <div style={{ flex: 1 }}>{(o.precio || 0).toLocaleString()}</div>
+                                  <div className="small" style={{ minWidth: 170, textAlign: 'right' }}>{formatDateIso(o.fecha)} <span style={{ marginLeft: 8 }}>({timeAgo(o.fecha)})</span></div>
+                                  <div style={{ marginLeft: 8 }}>{(o.fuentes || []).join(' ')}</div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </>
             )}
           </div>
         </div>
       )}
-    </div>
-  );
-}
-
-/* ---------- PricesBlock (sin cambios funcionales, solo defensivo) ---------- */
-function PricesBlock({ data, source }) {
-  if (!data) return <div className="small">No hay datos (aún)</div>;
-  if (data.error) return <div className="small">Error: {String(data.error)}</div>;
-
-  // defensiva con optional chaining
-  const precios = data?.precios || data?.prices || data;
-  if (!precios || Object.keys(precios).length === 0) {
-    return <div className="small">No hay registros recientes</div>;
-  }
-
-  return (
-    <div style={{ marginTop: 8 }}>
-      {Object.entries(precios).map(([city, obj]) => {
-        const color = cityColor[city] || '#ddd';
-        const shade = source === 'backend1' ? 'rgba(107,11,107,0.08)' : 'rgba(255,143,194,0.08)';
-
-        const ordenVenta = [...(obj.orden_venta || obj.sell || [])]
-          .sort((a, b) => (a.precio || a.price) - (b.precio || b.price))
-          .slice(0, 7);
-
-        const ordenCompra = [...(obj.orden_compra || obj.buy || [])]
-          .sort((a, b) => (b.precio || b.price) - (a.precio || a.price))
-          .slice(0, 7);
-
-        return (
-          <div key={city} style={{ padding: 8, marginBottom: 8, borderRadius: 8, background: shade }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <strong style={{ color }}>{city}</strong>
-              <span className="small">{obj.actualizado || obj.updated || ''}</span>
-            </div>
-
-            <div style={{ display: 'flex', gap: 12, marginTop: 6 }}>
-              <div style={{ flex: 1 }}>
-                <div className="small">Orden venta</div>
-                {ordenVenta.map((o, idx) => (
-                  <div key={idx} className="result-row">
-                    <span>•</span>
-                    <span>{(o.precio || o.price || o).toLocaleString()}</span>
-                    <span className="small">{o.fecha || o.date || ''}</span>
-                  </div>
-                ))}
-              </div>
-
-              <div style={{ flex: 1 }}>
-                <div className="small">Orden compra</div>
-                {ordenCompra.map((o, idx) => (
-                  <div key={idx} className="result-row">
-                    <span>•</span>
-                    <span>{(o.precio || o.price || o).toLocaleString()}</span>
-                    <span className="small">{o.fecha || o.date || ''}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        );
-      })}
     </div>
   );
 }

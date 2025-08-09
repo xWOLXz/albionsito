@@ -24,27 +24,27 @@ export default function Market() {
 
   // Llamar backend2 para obtener precios combinados
   async function fetchPrices(itemId, qualityParam = 1) {
-    if (!itemId) {
-      setPrices(null);
-      return;
-    }
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await fetch(
-        `https://albionsito-backend2.onrender.com/api/prices?itemId=${encodeURIComponent(
-          itemId
-        )}&quality=${qualityParam}`
-      );
-      if (!res.ok) throw new Error(`Error HTTP ${res.status}`);
-      const data = await res.json();
-      setPrices(data.precios || null);
-    } catch (e) {
-      setError(e.message || 'Error al obtener precios');
-      setPrices(null);
-    } finally {
-      setLoading(false);
-    }
+  if (!itemId) {
+    setPrices(null);
+    return;
+  }
+  setLoading(true);
+  setError(null);
+  try {
+    const res = await fetch(
+      `https://albionsito-backend2.onrender.com/api/combined-prices?itemId=${encodeURIComponent(
+        itemId
+      )}&quality=${qualityParam}`
+    );
+    if (!res.ok) throw new Error(`Error HTTP ${res.status}`);
+    const data = await res.json();
+    setPrices(data.precios || null);
+  } catch (e) {
+    setError(e.message || 'Error al obtener precios');
+    setPrices(null);
+  } finally {
+    setLoading(false);
+  }
   }
 
   // Cuando cambia el ítem seleccionado o calidad, refetch precios

@@ -1,90 +1,41 @@
-import React, { useState, useEffect } from 'react';
+export default function ItemCard({ item, prices }) {
+  if (prices.length === 0) return <p>No hay datos de precios.</p>;
 
-export default function ItemCard({ itemId, itemName, itemIcon, quality, onClose }) {
-  const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const sell = prices.filter((p) => p.sell_price_min > 0);
+  const buy = prices.filter((p) => p.buy_price_max > 0);
 
-  useEffect(() => {
-    if (!itemId) return;
+  const bestSell = sell.reduce((min, p) => (p.sell_price_min < min.sell_price_min ? p : min), sell[0]);
+  const bestBuy = buy.reduce((max, p) => (p.buy_price_max > max.buy_price_max ? p : max), buy[0]);
 
-    const fetchData = async () => {
-      try {
-        setLoading(true);
-        const response = await fetch(
-          `/api/prices?item=${itemId}&quality=${quality || 1}`
-        );
-        const result = await response.json();
-        setData(result);
-      } catch (error) {
-        console.error("Error obteniendo datos del backend:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchData();
-  }, [itemId, quality]);
+  const profit = bestSell && bestBuy ? bestSell.sell_price_min - bestBuy.buy_price_max : 0;
 
   return (
-    <div className="bg-gray-900 text-white p-4 rounded-lg shadow-lg max-w-lg mx-auto relative">
-      <button
-        onClick={onClose}
-        className="absolute top-2 right-2 text-gray-400 hover:text-white"
-      >
-        ✕
-      </button>
-
-      <div className="flex items-center space-x-4">
+    <div className="border p-4 rounded shadow">
+      <div className="flex items-center gap-4">
         <img
-          src={itemIcon}
-          alt={itemName}
-          className="w-12 h-12 object-contain"
+          src={`https://render.albiononline.com/v1/item/${item.uniqueName}.png`}
+          alt={item.name}
+          className="w-16 h-16"
         />
-        <h2 className="text-xl font-bold">{itemName}</h2>
-      </div>
-
-      {loading ? (
-        <div className="text-center py-4">Buscando precios...</div>
-      ) : data && Object.keys(data).length > 0 ? (
-        <div className="mt-4 space-y-4">
-          <h3 className="text-lg font-semibold">💹 Comparativa por ciudad</h3>
-
-          <table className="w-full border border-gray-700 text-sm">
-            <thead>
-              <tr className="bg-gray-800">
-                <th className="border border-gray-700 px-2 py-1">Ciudad</th>
-                <th className="border border-gray-700 px-2 py-1">Venta más barata</th>
-                <th className="border border-gray-700 px-2 py-1">Compra más cara</th>
-                <th className="border border-gray-700 px-2 py-1">Actualizado</th>
-              </tr>
-            </thead>
-            <tbody>
-              {Object.entries(data).map(([city, info]) => (
-                <tr key={city} className="text-center">
-                  <td className="border border-gray-700 px-2 py-1">{city}</td>
-                  <td className="border border-gray-700 px-2 py-1">
-                    {info.orden_venta?.[0]?.precio
-                      ? `${info.orden_venta[0].precio.toLocaleString()}`
-                      : "—"}
-                  </td>
-                  <td className="border border-gray-700 px-2 py-1">
-                    {info.orden_compra?.[0]?.precio
-                      ? `${info.orden_compra[0].precio.toLocaleString()}`
-                      : "—"}
-                  </td>
-                  <td className="border border-gray-700 px-2 py-1">
-                    {info.actualizado
-                      ? new Date(info.actualizado).toLocaleString()
-                      : "—"}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div>
+          <p><strong>Nombre:</strong> {item.name}</p>
+          {bestSell && (
+            <p>
+              <strong>Venta más baja:</strong> {bestSell.sell_price_min.toLocaleString()} en {bestSell.city}
+            </p>
+          )}
+          {bestBuy && (
+            <p>
+              <strong>Compra más alta:</strong> {bestBuy.buy_price_max.toLocaleString()} en {bestBuy.city}
+            </p>
+          )}
+          {profit > 0 && (
+            <p className="text-green-600 font-bold">
+              Ganancia potencial: {profit.toLocaleString()}
+            </p>
+          )}
         </div>
-      ) : (
-        <div className="text-center py-4">No se encontraron precios</div>
-      )}
+      </div>
     </div>
   );
 }

@@ -1,5 +1,4 @@
 
-
 import React, { useEffect, useState } from 'react';
 import SearchBar from '../components/SearchBar';
 import ItemCard from '../components/ItemCard';

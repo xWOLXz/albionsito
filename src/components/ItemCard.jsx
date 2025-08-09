@@ -1,25 +1,20 @@
+// src/components/ItemCard.jsx
 import React from 'react';
 
 const formatNumber = (num) =>
   num?.toLocaleString('es-CO', { maximumFractionDigits: 0 }) || '—';
 
-const ItemCard = ({ item, backend1Data, backend2Data }) => {
-  const nombreItem =
-    item.nombre ||
-    item.LocalizedNames?.['ES-ES'] ||
-    item.id ||
-    item.UniqueName ||
-    'Ítem desconocido';
-
-  const uniqueName = item.id || item.UniqueName || '';
-  
+const ItemCard = ({ item, backend1Data, backend2Data, onSelect }) => {
   const renderBackendBlock = (backendName, data, color) => {
-    if (!data || !data[uniqueName]) return null;
+    if (!data || !data[item.UniqueName]) return null;
 
-    const itemData = data[uniqueName];
+    const itemData = data[item.UniqueName];
 
     return (
-      <div className="rounded-xl p-3 mb-2 border-2" style={{ borderColor: color }}>
+      <div
+        className="rounded-xl p-3 mb-2 border-2"
+        style={{ borderColor: color }}
+      >
         <h3 className="text-sm font-bold" style={{ color }}>{backendName}</h3>
         <div className="grid grid-cols-2 gap-2 text-sm mt-1">
           <div>
@@ -46,11 +41,25 @@ const ItemCard = ({ item, backend1Data, backend2Data }) => {
     );
   };
 
+  const nombreItem =
+    item.nombre ||
+    item.LocalizedNames?.['ES-ES'] ||
+    item.id ||
+    item.UniqueName ||
+    'Ítem';
+
+  const imagenItem =
+    item.imagen ||
+    `https://render.albiononline.com/v1/item/${item.id || item.UniqueName}.png`;
+
   return (
-    <div className="bg-zinc-900 text-white p-4 rounded-xl shadow-md flex flex-col gap-2">
+    <div
+      className="bg-zinc-900 text-white p-4 rounded-xl shadow-md flex flex-col gap-2 cursor-pointer hover:bg-zinc-800 transition"
+      onClick={() => onSelect && onSelect(item)}
+    >
       <div className="flex items-center gap-3">
         <img
-          src={`https://render.albiononline.com/v1/item/${uniqueName}.png`}
+          src={imagenItem}
           alt={nombreItem}
           className="w-10 h-10"
         />

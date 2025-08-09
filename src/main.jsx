@@ -1,6 +1,14 @@
 import React from 'react';
-import { createRoot } from 'react-dom/client';
-import App from './App.jsx';
-import './index.css';
+import ReactDOM from 'react-dom/client';
+import { AlbionProvider } from './context/AlbionContext';
+import App from './App';   // Aquí tu componente principal con rutas, incluido Market
 
-createRoot(document.getElementById('root')).render(<App />);
+import './index.css';      // estilos globales
+
+ReactDOM.createRoot(document.getElementById('root')).render(
+  <React.StrictMode>
+    <AlbionProvider>
+      <App />
+    </AlbionProvider>
+  </React.StrictMode>
+);

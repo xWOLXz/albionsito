@@ -1,23 +1,32 @@
-import { useState, useEffect } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 
-export default function SearchBar({ onSearch }) {
-  const [term, setTerm] = useState('');
+export default function SearchBar({ onSearch, placeholder = 'Buscar ítem...' }) {
+  const [value, setValue] = useState('');
+  const timer = useRef(null);
 
+  // Debounce 3s
   useEffect(() => {
-    const delayDebounce = setTimeout(() => {
-      onSearch(term);
-    }, 3000); // 3 segundos
+    if (!value || value.trim().length < 1) {
+      // don't search empty
+      onSearch('');
+      return;
+    }
+    clearTimeout(timer.current);
+    timer.current = setTimeout(() => {
+      onSearch(value.trim());
+    }, 3000);
 
-    return () => clearTimeout(delayDebounce);
-  }, [term]);
+    return () => clearTimeout(timer.current);
+  }, [value]);
 
   return (
-    <input
-      type="text"
-      value={term}
-      onChange={(e) => setTerm(e.target.value)}
-      placeholder="Buscar ítem..."
-      className="w-full p-2 border rounded text-center"
-    />
+    <div style={{display:'flex', gap:8}}>
+      <input
+        className="input"
+        placeholder={placeholder}
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+      />
+    </div>
   );
 }

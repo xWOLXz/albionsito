@@ -1,162 +1,236 @@
-import React, { useContext, useEffect, useState } from 'react';
-import { AlbionContext } from '../context/AlbionContext';
+// src/pages/Market.jsx
+import React, { useEffect, useState } from 'react';
 import SearchBar from '../components/SearchBar';
+import ItemCard from '../components/ItemCard';
 import Loader from '../components/Loader';
 
+const BACKEND1 = 'https://albionsito-backend.onrender.com';
+const BACKEND2 = 'https://albionsito-backend2.onrender.com';
+
+const cityColor = {
+  "Fort Sterling": "white",
+  "Lymhurst": "lightgreen",
+  "Bridgewatch": "orange",
+  "Martlock": "skyblue",
+  "Thetford": "violet",
+  "Caerleon": "black",
+  "Brecilien": "gray"
+};
+
 export default function Market() {
-  const {
-    items,
-    quality,
-    setQuality,
-    searchTerm,
-    setSearchTerm,
-    selectedItem,
-    setSelectedItem,
-  } = useContext(AlbionContext);
+  const [items, setItems] = useState([]);
+  const [results, setResults] = useState([]);
+  const [loadingItems, setLoadingItems] = useState(true);
+  const [selectedItem, setSelectedItem] = useState(null);
+  const [quality, setQuality] = useState(1);
+  const [loadingPrices, setLoadingPrices] = useState(false);
+  const [pricesFromBackend1, setPricesFromBackend1] = useState(null);
+  const [pricesFromBackend2, setPricesFromBackend2] = useState(null);
 
-  const [prices, setPrices] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-
-  // Filtrar ítems para el buscador
-  const filteredItems = items.filter((item) => {
-    if (!searchTerm) return true;
-    const name =
-      item.nombre?.toLowerCase() ||
-      item.LocalizedNames?.['ES-ES']?.toLowerCase() ||
-      '';
-    return (
-      name.includes(searchTerm.toLowerCase()) ||
-      (item.id && item.id.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (item.UniqueName && item.UniqueName.toLowerCase().includes(searchTerm.toLowerCase()))
-    );
-  });
-
-  // Cuando cambia búsqueda, actualizar selección a null para forzar seleccionar uno
   useEffect(() => {
-    setSelectedItem(null);
-  }, [searchTerm]);
-
-  // Cuando cambia ítem seleccionado o calidad, hacer fetch de precios
-  useEffect(() => {
-    async function fetchPrices() {
-      if (!selectedItem) {
-        setPrices(null);
-        return;
-      }
-      setLoading(true);
-      setError(null);
+    (async () => {
       try {
-        const itemId = selectedItem.id || selectedItem.UniqueName;
-        const res = await fetch(
-          `https://albionsito-backend2.onrender.com/api/combined-prices?itemId=${encodeURIComponent(
-            itemId
-          )}&quality=${quality}`
-        );
-        if (!res.ok) throw new Error(`Error HTTP ${res.status}`);
+        const res = await fetch('/items.json');
         const data = await res.json();
-        setPrices(data.precios || null);
-      } catch (e) {
-        setError(e.message || 'Error al obtener precios');
-        setPrices(null);
+        const base = data.filter(it => /^T[4-8]_[A-Z0-9_]+$/.test(it.id || it.UniqueName || it.ID));
+        setItems(base);
+      } catch (err) {
+        console.error('Error cargando items:', err);
       } finally {
-        setLoading(false);
+        setLoadingItems(false);
       }
+    })();
+
+    fetch(`${BACKEND1}/api/init`).catch(() => {});
+    fetch(`${BACKEND2}/api/init`).catch(() => {});
+  }, []);
+
+  const handleSearch = (term) => {
+    const q = term?.toLowerCase().trim();
+    if (!q) return setResults([]);
+
+    const filtered = items.filter(it =>
+      (it.nombre || it.UniqueName || '').toLowerCase().includes(q)
+    ).slice(0, 30);
+    setResults(filtered);
+  };
+
+  const selectItem = (item) => {
+    setSelectedItem(item);
+    setQuality(1);
+    fetchPricesForItem(item, 1);
+  };
+
+  const fetchPricesForItem = async (item, qualityToUse = 1) => {
+    const itemId = item.id || item.UniqueName || item.ID;
+    setLoadingPrices(true);
+    setPricesFromBackend1(null);
+    setPricesFromBackend2(null);
+
+    try {
+      const res1 = await fetch(`${BACKEND1}/api/prices?itemId=${encodeURIComponent(itemId)}&quality=${qualityToUse}`);
+      const json1 = await res1.json();
+      console.log('DEBUG backend1 response:', json1);
+      setPricesFromBackend1(json1);
+    } catch (err) {
+      setPricesFromBackend1({ error: String(err) });
     }
-    fetchPrices();
-  }, [selectedItem, quality]);
+
+    try {
+      const res2 = await fetch(`${BACKEND2}/api/prices?itemId=${encodeURIComponent(itemId)}&quality=${qualityToUse}`);
+      const json2 = await res2.json();
+      console.log('DEBUG backend2 response:', json2);
+      setPricesFromBackend2(json2);
+    } catch (err) {
+      setPricesFromBackend2({ error: String(err) });
+    } finally {
+      setLoadingPrices(false);
+    }
+  };
+
+  const changeQuality = (q) => {
+    setQuality(q);
+    if (selectedItem) fetchPricesForItem(selectedItem, q);
+  };
 
   return (
-    <div className="container" style={{ maxWidth: 900, margin: 'auto', padding: 12 }}>
-      <h1>Market - Precios Combinados</h1>
+    <div className="container">
+      <h1>🛒 Market</h1>
 
-      <SearchBar
-        onSearch={setSearchTerm}
-        placeholder="Buscar ítem por nombre o ID..."
-        items={filteredItems}
-        onSelect={setSelectedItem}
-        selected={selectedItem}
-      />
-
-      <div style={{ marginTop: 12 }}>
-        <label>
-          Calidad:
-          <select
-            value={quality}
-            onChange={(e) => setQuality(Number(e.target.value))}
-            style={{ marginLeft: 8, padding: 4, borderRadius: 6, background: '#111', color: '#fff' }}
-          >
-            {[1, 2, 3, 4].map((q) => (
-              <option key={q} value={q}>
-                {q}
-              </option>
-            ))}
-          </select>
-        </label>
+      <div className="card" style={{ marginTop: 10 }}>
+        <SearchBar onSearch={handleSearch} placeholder="Escribe para buscar ítems (ej: Túnica, Bolsa...)" />
       </div>
 
-      {loading && <Loader />}
-      {error && <div style={{ color: 'red', marginTop: 10 }}>{error}</div>}
-
-      {!loading && !error && prices && selectedItem && (
-        <>
-          <h2 style={{ marginTop: 20 }}>
-            Precios para: {selectedItem.nombre || selectedItem.LocalizedNames?.['ES-ES'] || selectedItem.id}
-          </h2>
-
-          {Object.entries(prices).map(([city, data]) => (
-            <div key={city} className="card" style={{ marginTop: 10, padding: 10, background: '#222', borderRadius: 8 }}>
-              <h3>{city}</h3>
-              <div>
-                <strong>Última actualización:</strong>{' '}
-                {data.actualizado ? new Date(data.actualizado).toLocaleString() : 'Desconocida'}
+      <div style={{ marginTop: 12 }}>
+        {loadingItems ? (
+          <Loader />
+        ) : (
+          <>
+            {results.length === 0 && <div className="small">Escribe 3 segundos y verás resultados.</div>}
+            {results.length > 0 && (
+              <div className="grid" style={{ marginTop: 10 }}>
+                {results.map(it => (
+                  <ItemCard key={it.id || it.UniqueName} item={it} onSelect={selectItem} />
+                ))}
               </div>
-              <div style={{ display: 'flex', gap: 20, marginTop: 6, flexWrap: 'wrap' }}>
-                <div>
-                  <strong>Venta (órdenes):</strong>
-                  <ul style={{ maxWidth: 220, marginTop: 6 }}>
-                    {data.orden_venta?.length ? (
-                      data.orden_venta.map(({ precio, fecha, fuentes }, i) => (
-                        <li key={i}>
-                          {precio.toLocaleString()} <small>plata</small> -{' '}
-                          {fecha ? new Date(fecha).toLocaleString() : 'Desconocida'}{' '}
-                          <small>{fuentes?.join(' ')}</small>
-                        </li>
-                      ))
-                    ) : (
-                      <li>No hay datos</li>
-                    )}
-                  </ul>
+            )}
+          </>
+        )}
+      </div>
+
+      {selectedItem && (
+        <div style={{ marginTop: 20 }} className="card">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+              <img
+                src={selectedItem.imagen || `https://render.albiononline.com/v1/item/${selectedItem.id || selectedItem.UniqueName}.png`}
+                width={52}
+                height={52}
+                alt={selectedItem.nombre || selectedItem.id || selectedItem.UniqueName}
+              />
+              <div>
+                <div style={{ fontWeight: 700 }}>
+                  {selectedItem.nombre || selectedItem.id || selectedItem.UniqueName}
                 </div>
-                <div>
-                  <strong>Compra (órdenes):</strong>
-                  <ul style={{ maxWidth: 220, marginTop: 6 }}>
-                    {data.orden_compra?.length ? (
-                      data.orden_compra.map(({ precio, fecha, fuentes }, i) => (
-                        <li key={i}>
-                          {precio.toLocaleString()} <small>plata</small> -{' '}
-                          {fecha ? new Date(fecha).toLocaleString() : 'Desconocida'}{' '}
-                          <small>{fuentes?.join(' ')}</small>
-                        </li>
-                      ))
-                    ) : (
-                      <li>No hay datos</li>
-                    )}
-                  </ul>
-                </div>
+                <div className="small">{selectedItem.id || selectedItem.UniqueName}</div>
               </div>
             </div>
-          ))}
-        </>
-      )}
 
-      {!loading && !error && !prices && (
-        <div style={{ marginTop: 20 }}>
-          {filteredItems.length === 0
-            ? 'No hay ítems que coincidan con la búsqueda'
-            : 'Selecciona un ítem para ver precios'}
+            <div>
+              <label className="small">Encantamiento: </label>
+              <select value={quality} onChange={(e) => changeQuality(Number(e.target.value))}>
+                <option value={1}>Base</option>
+                <option value={2}>+1</option>
+                <option value={3}>+2</option>
+                <option value={4}>+3</option>
+                <option value={5}>+4</option>
+              </select>
+            </div>
+          </div>
+
+          <div style={{ marginTop: 12 }}>
+            {loadingPrices && <Loader />}
+            {!loadingPrices && (
+              <>
+                <h3>💹 Comparativa por ciudad</h3>
+
+                <div style={{ display: 'grid', gap: 10 }}>
+                  <div>
+                    <strong>Fuente: Backend 1</strong>
+                    <PricesBlock data={pricesFromBackend1} source="backend1" />
+                  </div>
+
+                  <div>
+                    <strong>Fuente: Backend 2</strong>
+                    <PricesBlock data={pricesFromBackend2} source="backend2" />
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
         </div>
       )}
+    </div>
+  );
+}
+
+/* ---------- PricesBlock ---------- */
+function PricesBlock({ data, source }) {
+  if (!data) return <div className="small">No hay datos (aún)</div>;
+  if (data.error) return <div className="small">Error: {String(data.error)}</div>;
+
+  const precios = data?.precios || data?.prices || data;
+  if (!precios || Object.keys(precios).length === 0) {
+    return <div className="small">No hay registros recientes</div>;
+  }
+
+  return (
+    <div style={{ marginTop: 8 }}>
+      {Object.entries(precios).map(([city, obj]) => {
+        const color = cityColor[city] || '#ddd';
+        const shade = source === 'backend1' ? 'rgba(107,11,107,0.08)' : 'rgba(255,143,194,0.08)';
+
+        const ordenVenta = [...(obj.orden_venta || obj.sell || [])]
+          .sort((a, b) => (a.precio || a.price) - (b.precio || b.price))
+          .slice(0, 7);
+
+        const ordenCompra = [...(obj.orden_compra || obj.buy || [])]
+          .sort((a, b) => (b.precio || b.price) - (a.precio || a.price))
+          .slice(0, 7);
+
+        return (
+          <div key={city} style={{ padding: 8, marginBottom: 8, borderRadius: 8, background: shade }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <strong style={{ color }}>{city}</strong>
+              <span className="small">{obj.actualizado || obj.updated || ''}</span>
+            </div>
+
+            <div style={{ display: 'flex', gap: 12, marginTop: 6 }}>
+              <div style={{ flex: 1 }}>
+                <div className="small">Orden venta</div>
+                {ordenVenta.map((o, idx) => (
+                  <div key={idx} className="result-row">
+                    <span>•</span>
+                    <span>{(o.precio || o.price || o).toLocaleString()}</span>
+                    <span className="small">{o.fecha || o.date || ''}</span>
+                  </div>
+                ))}
+              </div>
+
+              <div style={{ flex: 1 }}>
+                <div className="small">Orden compra</div>
+                {ordenCompra.map((o, idx) => (
+                  <div key={idx} className="result-row">
+                    <span>•</span>
+                    <span>{(o.precio || o.price || o).toLocaleString()}</span>
+                    <span className="small">{o.fecha || o.date || ''}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }

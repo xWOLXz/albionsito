@@ -1,65 +1,127 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 
-export default function SearchBar({ items, onSearch, placeholder }) {
-  const [input, setInput] = useState('');
-  const [suggestions, setSuggestions] = useState([]);
+export default function SearchBar({ onSearch, placeholder, items, onSelect, selected }) {
+  const [inputValue, setInputValue] = useState('');
+  const [showList, setShowList] = useState(false);
+  const containerRef = useRef(null);
 
+  // Debounce input
   useEffect(() => {
-    if (!input) {
-      setSuggestions([]);
-      onSearch('');
-      return;
-    }
-    const lower = input.toLowerCase();
-    const filtered = items.filter(item => {
-      const name = item.nombre?.toLowerCase() || item.LocalizedNames?.['ES-ES']?.toLowerCase() || '';
-      return name.includes(lower);
-    });
-    setSuggestions(filtered.slice(0, 10)); // máximo 10 sugerencias
-  }, [input, items, onSearch]);
+    const handler = setTimeout(() => {
+      onSearch(inputValue.trim());
+    }, 300);
+    return () => clearTimeout(handler);
+  }, [inputValue, onSearch]);
 
-  function handleSelect(item) {
-    setInput(item.nombre || item.LocalizedNames?.['ES-ES'] || '');
-    setSuggestions([]);
-    onSearch(item.id || item.UniqueName || '');
-  }
+  // Close dropdown on click outside
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (containerRef.current && !containerRef.current.contains(event.target)) {
+        setShowList(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // When external selected changes, update input text
+  useEffect(() => {
+    if (selected) {
+      const name = selected.nombre || selected.LocalizedNames?.['ES-ES'] || selected.id || '';
+      setInputValue(name);
+      setShowList(false);
+    }
+  }, [selected]);
+
+  const handleSelect = (item) => {
+    onSelect(item);
+    setShowList(false);
+  };
 
   return (
-    <div style={{ position: 'relative' }}>
+    <div ref={containerRef} style={{ position: 'relative', maxWidth: 400 }}>
       <input
         type="text"
-        placeholder={placeholder}
-        value={input}
-        onChange={e => setInput(e.target.value)}
-        style={{ width: '100%', padding: '8px', borderRadius: 6, background: '#111', color: '#eee', border: '1px solid #444' }}
+        value={inputValue}
+        placeholder={placeholder || 'Buscar...'}
+        onChange={(e) => {
+          setInputValue(e.target.value);
+          setShowList(true);
+          onSelect(null); // clear selection on typing
+        }}
+        onFocus={() => setShowList(true)}
+        style={{
+          width: '100%',
+          padding: '8px 12px',
+          borderRadius: 8,
+          border: '1px solid #555',
+          backgroundColor: '#111',
+          color: '#fff',
+          fontSize: 16,
+        }}
+        spellCheck={false}
+        autoComplete="off"
       />
-      {suggestions.length > 0 && (
+
+      {showList && items && items.length > 0 && (
         <ul
           style={{
             position: 'absolute',
-            backgroundColor: '#222',
-            width: '100%',
-            maxHeight: 200,
+            top: 'calc(100% + 4px)',
+            left: 0,
+            right: 0,
+            maxHeight: 250,
             overflowY: 'auto',
-            borderRadius: 6,
-            padding: 0,
+            backgroundColor: '#222',
+            borderRadius: 8,
+            boxShadow: '0 0 8px rgba(0,0,0,0.6)',
             margin: 0,
+            padding: 0,
             listStyle: 'none',
-            zIndex: 100,
-            border: '1px solid #444',
+            zIndex: 9999,
           }}
         >
-          {suggestions.map(item => (
-            <li
-              key={item.id || item.UniqueName}
-              onClick={() => handleSelect(item)}
-              style={{ padding: 8, cursor: 'pointer', borderBottom: '1px solid #333' }}
-              onMouseDown={e => e.preventDefault()} // para evitar que input pierda foco antes del click
-            >
-              {item.nombre || item.LocalizedNames?.['ES-ES'] || item.id}
-            </li>
-          ))}
+          {items.slice(0, 50).map((item) => {
+            const name = item.nombre || item.LocalizedNames?.['ES-ES'] || item.id || item.UniqueName || '';
+            const isSelected = selected && (selected.id === item.id || selected.UniqueName === item.UniqueName);
+            return (
+              <li
+                key={item.id || item.UniqueName || name}
+                onClick={() => handleSelect(item)}
+                style={{
+                  padding: '8px 12px',
+                  cursor: 'pointer',
+                  backgroundColor: isSelected ? '#555' : 'transparent',
+                  color: '#eee',
+                }}
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleSelect(item);
+                }}
+              >
+                {name}
+              </li>
+            );
+          })}
         </ul>
+      )}
+
+      {showList && items && items.length === 0 && (
+        <div
+          style={{
+            position: 'absolute',
+            top: 'calc(100% + 4px)',
+            left: 0,
+            right: 0,
+            backgroundColor: '#222',
+            borderRadius: 8,
+            padding: 12,
+            color: '#aaa',
+            fontStyle: 'italic',
+          }}
+        >
+          No hay resultados
+        </div>
       )}
     </div>
   );

@@ -31,6 +31,7 @@ export default function Market() {
       try {
         const res = await fetch('/items.json');
         const data = await res.json();
+        // Regex con _ (asegura IDs como T6_MAIN_AXE)
         const base = data.filter(it => /^T[4-8]_[A-Z0-9_]+$/.test(it.id || it.UniqueName || it.ID));
         setItems(base);
       } catch (err) {
@@ -68,7 +69,9 @@ export default function Market() {
 
     try {
       const res1 = await fetch(`${BACKEND1}/api/prices?itemId=${encodeURIComponent(itemId)}&quality=${qualityToUse}`);
-      setPricesFromBackend1(await res1.json());
+      const json1 = await res1.json();
+      console.log('DEBUG backend1 response:', json1);
+      setPricesFromBackend1(json1);
     } catch (err) {
       setPricesFromBackend1({ error: String(err) });
     }
@@ -76,6 +79,7 @@ export default function Market() {
     try {
       const res2 = await fetch(`${BACKEND2}/api/prices?itemId=${encodeURIComponent(itemId)}&quality=${qualityToUse}`);
       const json2 = await res2.json();
+      console.log('DEBUG backend2 response:', json2);
       setPricesFromBackend2(json2);
     } catch (err) {
       setPricesFromBackend2({ error: String(err) });
@@ -148,7 +152,19 @@ export default function Market() {
             {!loadingPrices && (
               <>
                 <h3>💹 Comparativa por ciudad</h3>
-                <PricesBlock backend1={pricesFromBackend1} backend2={pricesFromBackend2} />
+
+                {/* Mostrar ambos backends (uno por sección) */}
+                <div style={{ display: 'grid', gap: 10 }}>
+                  <div>
+                    <strong>Fuente: Backend 1</strong>
+                    <PricesBlock data={pricesFromBackend1} source="backend1" />
+                  </div>
+
+                  <div>
+                    <strong>Fuente: Backend 2</strong>
+                    <PricesBlock data={pricesFromBackend2} source="backend2" />
+                  </div>
+                </div>
               </>
             )}
           </div>
@@ -158,11 +174,13 @@ export default function Market() {
   );
 }
 
+/* ---------- PricesBlock (sin cambios funcionales, solo defensivo) ---------- */
 function PricesBlock({ data, source }) {
-  if (!data) return null;
+  if (!data) return <div className="small">No hay datos (aún)</div>;
   if (data.error) return <div className="small">Error: {String(data.error)}</div>;
 
-  const precios = data.precios || data.prices || data;
+  // defensiva con optional chaining
+  const precios = data?.precios || data?.prices || data;
   if (!precios || Object.keys(precios).length === 0) {
     return <div className="small">No hay registros recientes</div>;
   }
@@ -171,12 +189,8 @@ function PricesBlock({ data, source }) {
     <div style={{ marginTop: 8 }}>
       {Object.entries(precios).map(([city, obj]) => {
         const color = cityColor[city] || '#ddd';
-        const shade =
-          source === 'backend1'
-            ? 'rgba(107,11,107,0.08)'
-            : 'rgba(255,143,194,0.08)';
+        const shade = source === 'backend1' ? 'rgba(107,11,107,0.08)' : 'rgba(255,143,194,0.08)';
 
-        // Asegurar ordenamiento
         const ordenVenta = [...(obj.orden_venta || obj.sell || [])]
           .sort((a, b) => (a.precio || a.price) - (b.precio || b.price))
           .slice(0, 7);
@@ -186,52 +200,30 @@ function PricesBlock({ data, source }) {
           .slice(0, 7);
 
         return (
-          <div
-            key={city}
-            style={{
-              padding: 8,
-              marginBottom: 8,
-              borderRadius: 8,
-              background: shade,
-            }}
-          >
-            <div
-              style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-              }}
-            >
+          <div key={city} style={{ padding: 8, marginBottom: 8, borderRadius: 8, background: shade }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <strong style={{ color }}>{city}</strong>
-              <span className="small">
-                {obj.actualizado || obj.updated || ''}
-              </span>
+              <span className="small">{obj.actualizado || obj.updated || ''}</span>
             </div>
 
             <div style={{ display: 'flex', gap: 12, marginTop: 6 }}>
-              {/* Columna de orden venta */}
               <div style={{ flex: 1 }}>
                 <div className="small">Orden venta</div>
                 {ordenVenta.map((o, idx) => (
                   <div key={idx} className="result-row">
                     <span>•</span>
-                    <span>
-                      {(o.precio || o.price || o).toLocaleString()}
-                    </span>
+                    <span>{(o.precio || o.price || o).toLocaleString()}</span>
                     <span className="small">{o.fecha || o.date || ''}</span>
                   </div>
                 ))}
               </div>
 
-              {/* Columna de orden compra */}
               <div style={{ flex: 1 }}>
                 <div className="small">Orden compra</div>
                 {ordenCompra.map((o, idx) => (
                   <div key={idx} className="result-row">
                     <span>•</span>
-                    <span>
-                      {(o.precio || o.price || o).toLocaleString()}
-                    </span>
+                    <span>{(o.precio || o.price || o).toLocaleString()}</span>
                     <span className="small">{o.fecha || o.date || ''}</span>
                   </div>
                 ))}

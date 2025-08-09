@@ -6,6 +6,7 @@ export const AlbionProvider = ({ children }) => {
   const [items, setItems] = useState([]);
   const [quality, setQuality] = useState(1);
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedItem, setSelectedItem] = useState(null);
 
   useEffect(() => {
     async function fetchItems() {
@@ -29,6 +30,8 @@ export const AlbionProvider = ({ children }) => {
         setQuality,
         searchTerm,
         setSearchTerm,
+        selectedItem,
+        setSelectedItem,
       }}
     >
       {children}

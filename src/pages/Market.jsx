@@ -1,3 +1,4 @@
+// src/pages/Market.jsx
 import React, { useEffect, useState } from 'react';
 import SearchBar from '../components/SearchBar';
 import ItemCard from '../components/ItemCard';
@@ -5,8 +6,6 @@ import Loader from '../components/Loader';
 
 const BACKEND1 = 'https://albionsito-backend.onrender.com';
 const BACKEND2 = 'https://albionsito-backend2.onrender.com';
-
-const CITIES = ["Caerleon", "Bridgewatch", "Lymhurst", "Martlock", "Thetford", "Fort Sterling", "Brecilien"];
 
 const cityColor = {
   "Fort Sterling": "white",
@@ -42,8 +41,8 @@ export default function Market() {
       }
     })();
 
+    // Solo calentamos backend1, para evitar el 404 en backend2
     fetch(`${BACKEND1}/api/init`).catch(() => {});
-    fetch(`${BACKEND2}/api/init`).catch(() => {});
   }, []);
 
   const handleSearch = (term) => {
@@ -51,7 +50,9 @@ export default function Market() {
     if (!q) return setResults([]);
 
     const filtered = items.filter(it =>
-      (it.nombre || it.UniqueName || '').toLowerCase().includes(q)
+      (it.nombre || it.LocalizedNames?.['ES-ES'] || it.id || it.UniqueName || '')
+        .toLowerCase()
+        .includes(q)
     ).slice(0, 30);
     setResults(filtered);
   };
@@ -92,6 +93,12 @@ export default function Market() {
     if (selectedItem) fetchPricesForItem(selectedItem, q);
   };
 
+  const getItemName = (item) =>
+    item.nombre || item.LocalizedNames?.['ES-ES'] || item.id || item.UniqueName || 'Ítem';
+
+  const getItemImage = (item) =>
+    item.imagen || `https://render.albiononline.com/v1/item/${item.id || item.UniqueName}.png`;
+
   return (
     <div className="container">
       <h1>🛒 Market</h1>
@@ -105,7 +112,7 @@ export default function Market() {
           <Loader />
         ) : (
           <>
-            {results.length === 0 && <div className="small">Escribe 3 segundos y verás resultados (tier base solamente).</div>}
+            {results.length === 0 && <div className="small">Escribe para buscar ítems (tier base solamente).</div>}
             {results.length > 0 && (
               <div className="grid" style={{ marginTop: 10 }}>
                 {results.map(it => (
@@ -121,15 +128,9 @@ export default function Market() {
         <div style={{ marginTop: 20 }} className="card">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-              <img
-                src={selectedItem.imagen || `https://render.albiononline.com/v1/item/${selectedItem.id || selectedItem.UniqueName}.png`}
-                width={52}
-                height={52}
-              />
+              <img src={getItemImage(selectedItem)} width={52} height={52} />
               <div>
-                <div style={{ fontWeight: 700 }}>
-                  {selectedItem.nombre || selectedItem.id || selectedItem.UniqueName}
-                </div>
+                <div style={{ fontWeight: 700 }}>{getItemName(selectedItem)}</div>
                 <div className="small">{selectedItem.id || selectedItem.UniqueName}</div>
               </div>
             </div>

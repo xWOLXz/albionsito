@@ -1,32 +1,35 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useState, useContext, useEffect } from "react";
+import { AlbionContext } from "../context/AlbionContext";
 
-export default function SearchBar({ onSearch, placeholder = 'Buscar ítem...' }) {
-  const [value, setValue] = useState('');
-  const timer = useRef(null);
+const SearchBar = () => {
+  const { searchItems } = useContext(AlbionContext);
+  const [query, setQuery] = useState("");
+  const [debounceTimeout, setDebounceTimeout] = useState(null);
 
-  // Debounce 3s
   useEffect(() => {
-    if (!value || value.trim().length < 1) {
-      // don't search empty
-      onSearch('');
+    if (debounceTimeout) clearTimeout(debounceTimeout);
+
+    if (query.trim() === "") {
+      searchItems("");
       return;
     }
-    clearTimeout(timer.current);
-    timer.current = setTimeout(() => {
-      onSearch(value.trim());
-    }, 3000);
 
-    return () => clearTimeout(timer.current);
-  }, [value]);
+    const timeout = setTimeout(() => {
+      searchItems(query);
+    }, 3000); // espera 3 segundos después de dejar de escribir
+
+    setDebounceTimeout(timeout);
+  }, [query]);
 
   return (
-    <div style={{display:'flex', gap:8}}>
-      <input
-        className="input"
-        placeholder={placeholder}
-        value={value}
-        onChange={(e) => setValue(e.target.value)}
-      />
-    </div>
+    <input
+      type="text"
+      placeholder="Buscar ítem..."
+      value={query}
+      onChange={(e) => setQuery(e.target.value)}
+      className="w-full p-2 border rounded"
+    />
   );
-}
+};
+
+export default SearchBar;

@@ -1,10 +1,10 @@
-// src/components/ItemCard.jsx
 import React from 'react';
 
 const ItemCard = ({ item, onSelect }) => {
   const nombreItem =
     item.nombre ||
     item.LocalizedNames?.['ES-ES'] ||
+    item.name ||
     item.id ||
     item.UniqueName ||
     'Ítem';
@@ -19,12 +19,11 @@ const ItemCard = ({ item, onSelect }) => {
       onClick={() => onSelect && onSelect(item)}
     >
       <div className="flex items-center gap-3">
-        <img
-          src={imagenItem}
-          alt={nombreItem}
-          className="w-10 h-10"
-        />
-        <h2 className="text-lg font-bold">{nombreItem}</h2>
+        <img src={imagenItem} alt={nombreItem} className="w-10 h-10" />
+        <div>
+          <h2 className="text-lg font-bold">{nombreItem}</h2>
+          <div className="small">{item.id || item.UniqueName}</div>
+        </div>
       </div>
     </div>
   );

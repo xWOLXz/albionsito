@@ -1,54 +1,63 @@
-import React, { createContext, useState, useEffect } from 'react';
+import React, { createContext, useState, useEffect } from "react";
 
 export const AlbionContext = createContext();
 
 export const AlbionProvider = ({ children }) => {
   const [items, setItems] = useState([]);
-  const [quality, setQuality] = useState(1);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
+  const [selectedItem, setSelectedItem] = useState(null);
+  const [prices, setPrices] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [prices, setPrices] = useState({ backend1: {}, backend2: {} });
 
+  // Cargar items locales una sola vez
   useEffect(() => {
-    const fetchItems = async () => {
-      const res = await fetch('/items.json');
-      const data = await res.json();
-      setItems(data);
-    };
-
-    fetchItems();
+    fetch("/items.json")
+      .then((res) => res.json())
+      .then((data) => setItems(data))
+      .catch((err) => console.error("Error cargando items locales:", err));
   }, []);
 
-  const fetchPrices = async () => {
+  // Función para buscar ítems
+  const searchItems = (query) => {
+    if (!query) {
+      setSearchResults([]);
+      return;
+    }
+    const filtered = items.filter((item) =>
+      item.LocalizedNames?.["ES-ES"]
+        ?.toLowerCase()
+        .includes(query.toLowerCase())
+    );
+    setSearchResults(filtered);
+  };
+
+  // Función para seleccionar un ítem y traer precios
+  const selectItem = async (item) => {
+    setSelectedItem(item);
     setLoading(true);
     try {
-      const [res1, res2] = await Promise.all([
-        fetch('https://albionsito-backend.onrender.com/api/prices'),
-        fetch('https://albionsito-backend2.onrender.com/api/prices2d'),
-      ]);
-      const [data1, data2] = await Promise.all([res1.json(), res2.json()]);
-      setPrices({
-        backend1: data1,
-        backend2: data2,
-      });
+      const res = await fetch(
+        `https://albionsito-backend.onrender.com/api/prices/${item.UniqueName}`
+      );
+      const data = await res.json();
+      setPrices(data);
     } catch (error) {
-      console.error('Error al obtener precios:', error);
-    } finally {
-      setLoading(false);
+      console.error("Error obteniendo precios:", error);
+      setPrices([]);
     }
+    setLoading(false);
   };
 
   return (
     <AlbionContext.Provider
       value={{
         items,
-        quality,
-        setQuality,
-        searchTerm,
-        setSearchTerm,
-        fetchPrices,
-        loading,
+        searchResults,
+        searchItems,
+        selectedItem,
+        selectItem,
         prices,
+        loading,
       }}
     >
       {children}

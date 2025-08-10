@@ -10,17 +10,32 @@ export default function Market() {
     if (!itemId.trim()) return;
     setLoading(true);
     setError(null);
+    setData(null);
 
     try {
-      // Cambia esta URL por la de tu nuevo backend Market en Vercel o Render
       const res = await fetch(`https://TU_BACKEND_MARKET_URL/api/market/${itemId}`);
       if (!res.ok) throw new Error("Error al obtener datos");
 
       const json = await res.json();
-      setData(json.results);
+
+      if (!json || json.length === 0) {
+        setError("No se encontró información para ese ítem.");
+        setData(null);
+      } else {
+        // Convertir cities object a array con ciudad incluida
+        const citiesObj = json[0].cities || {};
+        const citiesArray = Object.entries(citiesObj).map(([city, prices]) => ({
+          city,
+          sellPrices: prices.sellPrices || [],
+          buyPrices: prices.buyPrices || [],
+        }));
+
+        setData(citiesArray);
+      }
     } catch (err) {
       setError("No se pudo obtener información del mercado");
       console.error(err);
+      setData(null);
     } finally {
       setLoading(false);
     }
@@ -49,19 +64,19 @@ export default function Market() {
       {loading && <p>⏳ Cargando datos...</p>}
       {error && <p className="text-red-500">{error}</p>}
 
-      {data && (
+      {data && data.length > 0 && (
         <div>
-          {data.map((ciudad) => (
-            <div key={ciudad.city} className="mb-6 border p-4 rounded">
-              <h2 className="font-bold text-lg mb-2">{ciudad.city}</h2>
+          {data.map(({ city, sellPrices, buyPrices }) => (
+            <div key={city} className="mb-6 border p-4 rounded">
+              <h2 className="font-bold text-lg mb-2">{city}</h2>
 
               <div>
                 <h3 className="font-semibold">🛒 Últimos 5 precios de venta:</h3>
                 <ul className="list-disc ml-5">
-                  {ciudad.sellPrices.length > 0 ? (
-                    ciudad.sellPrices.map((p, i) => (
+                  {sellPrices.length > 0 ? (
+                    sellPrices.map((p, i) => (
                       <li key={i}>
-                        {p.price} plata — {new Date(p.timestamp).toLocaleString()}
+                        {p.price} plata — {new Date(p.date).toLocaleString()}
                       </li>
                     ))
                   ) : (
@@ -73,10 +88,10 @@ export default function Market() {
               <div className="mt-3">
                 <h3 className="font-semibold">💰 Últimos 5 precios de compra:</h3>
                 <ul className="list-disc ml-5">
-                  {ciudad.buyPrices.length > 0 ? (
-                    ciudad.buyPrices.map((p, i) => (
+                  {buyPrices.length > 0 ? (
+                    buyPrices.map((p, i) => (
                       <li key={i}>
-                        {p.price} plata — {new Date(p.timestamp).toLocaleString()}
+                        {p.price} plata — {new Date(p.date).toLocaleString()}
                       </li>
                     ))
                   ) : (

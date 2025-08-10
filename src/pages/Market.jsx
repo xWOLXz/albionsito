@@ -39,7 +39,7 @@ export default function Market() {
     const lowerQuery = query.toLowerCase();
     const filtered = items.filter((item) =>
       item.item_id?.toLowerCase().includes(lowerQuery) ||
-      item.name?.toLowerCase().includes(lowerQuery)
+      item.nombre?.toLowerCase().includes(lowerQuery)
     );
     setFilteredItems(filtered);
   };

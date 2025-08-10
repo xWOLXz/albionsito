@@ -301,15 +301,3 @@ export default function Market() {
     </div>
   );
 }
-
----
-
-# Backend2 — archivos (ES modules, listos para Render)
-
-> **Notas**: backend2 ahora usa sintaxis ESM (`import`) para evitar el error de Render. Asegúrate de que `package.json` de backend2 tenga: `"type": "module"`.
-
-## albionsito-backend2/utils/logger.js
-```js
-export function info(msg) { console.log(`[INFO] ${new Date().toISOString()} - ${msg}`); }
-export function error(msg) { console.error(`[ERROR] ${new Date().toISOString()} - ${msg}`); }
-export default { info, error };

@@ -12,6 +12,16 @@ export default function Market() {
     setError(null);
     setData(null);
 
+    const cityColor = {
+  "Fort Sterling": "white",
+  "Lymhurst": "lightgreen",
+  "Bridgewatch": "orange",
+  "Martlock": "skyblue",
+  "Thetford": "violet",
+  "Caerleon": "black",
+  "Brecilien": "gray"
+    };
+
     try {
       const res = await fetch(`https://albionsito-backend.onrender.com/api/market/${itemId}`);
       if (!res.ok) throw new Error("Error al obtener datos");

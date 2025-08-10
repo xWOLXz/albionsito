@@ -13,7 +13,7 @@ export default function Market() {
     setData(null);
 
     try {
-      const res = await fetch(`https://TU_BACKEND_MARKET_URL/api/market/${itemId}`);
+      const res = await fetch(`https://albionsito-backend.onrender.com/api/market/${itemId}`);
       if (!res.ok) throw new Error("Error al obtener datos");
 
       const json = await res.json();

@@ -78,6 +78,7 @@ export default function Market() {
     }
 
     // Backend2 (Albion2D) con adaptación de formato
+    /*
     try {
       const res2 = await fetch(`${BACKEND2}/api/prices?itemId=${encodeURIComponent(itemId)}&quality=${qualityToUse}`);
       const json2 = await res2.json();
@@ -112,6 +113,7 @@ export default function Market() {
     setQuality(q);
     if (selectedItem) fetchPricesForItem(selectedItem, q);
   };
+  */
 
   return (
     <div className="container">

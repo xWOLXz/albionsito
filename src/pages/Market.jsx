@@ -4,8 +4,8 @@ import SearchBar from '../components/SearchBar';
 import ItemCard from '../components/ItemCard';
 import Loader from '../components/Loader';
 
-const BACKEND1 = 'https://albionsito-backend.onrender.com';
-const BACKEND2 = 'https://albionsito-backend2.onrender.com';
+// ---- CONFIG ----
+const BACKEND3 = 'https://albionsito-backend3.onrender.com'; // <-- tu backend unificado
 
 const cityColor = {
   "Fort Sterling": "white",
@@ -17,217 +17,154 @@ const cityColor = {
   "Brecilien": "gray"
 };
 
-// Símbolos de fuente
+// Símbolos de fuente (útil para mostrar qué backends contestaron)
 const SRC = {
   backend1: '①',
   backend2: '②'
 };
 
-// número máximo por ciudad por tipo
+// número máximo por ciudad por tipo (usa para mostrar leyenda o mensajes)
 const MAX_PER_CITY = 5;
 
+// ---- COMPONENT ----
 export default function Market() {
+  // datos e UI
   const [items, setItems] = useState([]);
   const [results, setResults] = useState([]);
   const [loadingItems, setLoadingItems] = useState(true);
+
   const [selectedItem, setSelectedItem] = useState(null);
   const [quality, setQuality] = useState(1);
+
   const [loadingPrices, setLoadingPrices] = useState(false);
   const [mergedPrices, setMergedPrices] = useState(null);
-  const [rawBackend1, setRawBackend1] = useState(null);
+  const [rawBackend1, setRawBackend1] = useState(null); // se mantienen por compatibilidad visual (si quisieras mostrar raw)
   const [rawBackend2, setRawBackend2] = useState(null);
+  const [lastSources, setLastSources] = useState(null); // { backend1: true/false, backend2: true/false }
+  const [fromCache, setFromCache] = useState(false);
+  const [error, setError] = useState(null);
 
+  // carga inicial items.json
   useEffect(() => {
+    let alive = true;
     (async () => {
       try {
         const res = await fetch('/items.json');
         const data = await res.json();
         // Permitir IDs con guion bajo o formato normal
         const base = data.filter(it => /^T[4-8]_[A-Z0-9_]+$/.test(it.id || it.UniqueName || it.ID));
+        if (!alive) return;
         setItems(base);
       } catch (err) {
         console.error('Error cargando items:', err);
       } finally {
-        setLoadingItems(false);
+        if (alive) setLoadingItems(false);
       }
     })();
 
-    // ping a backends (opcional)
-    fetch(`${BACKEND1}/api/init`).catch(() => {});
-    fetch(`${BACKEND2}/api/init`).catch(() => {});
+    // ping opcional para calentar backends si quieres
+    fetch(`${BACKEND3}/api/init`).catch(() => {});
+
+    return () => { alive = false; };
   }, []);
 
+  // búsqueda (la SearchBar hace debounce)
   const handleSearch = (term) => {
     const q = term?.toLowerCase().trim();
     if (!q) return setResults([]);
-
     const filtered = items.filter(it =>
       (it.nombre || it.UniqueName || '').toLowerCase().includes(q)
     ).slice(0, 30);
     setResults(filtered);
   };
 
+  // seleccionar ítem desde ItemCard
   const selectItem = (item) => {
     setSelectedItem(item);
     setQuality(1);
     fetchPricesForItem(item, 1);
   };
 
-  async function fetchPricesForItem(item, qualityToUse = 1) {
-    const itemId = item.id || item.UniqueName || item.ID;
+  // helper: fetch con timeout
+  async function fetchWithTimeout(url, opts = {}, ms = 8000) {
+    const controller = new AbortController();
+    const id = setTimeout(() => controller.abort(), ms);
+    try {
+      const resp = await fetch(url, { ...opts, signal: controller.signal });
+      clearTimeout(id);
+      return resp;
+    } catch (err) {
+      clearTimeout(id);
+      throw err;
+    }
+  }
+
+  // ---- fetchPricesForItem usando BACKEND3 ----
+  // item puede ser objeto item (recomendado) o string id
+  async function fetchPricesForItem(itemOrId, qualityToUse = 1, { force = false } = {}) {
+    const itemId = typeof itemOrId === 'string' ? itemOrId : (itemOrId.id || itemOrId.UniqueName || itemOrId.ID);
+    if (!itemId) return;
+
     setLoadingPrices(true);
     setMergedPrices(null);
     setRawBackend1(null);
     setRawBackend2(null);
+    setLastSources(null);
+    setFromCache(false);
+    setError(null);
 
     try {
-      // Llamadas en paralelo
-      const [r1, r2] = await Promise.allSettled([
-        fetch(`${BACKEND1}/api/prices?itemId=${encodeURIComponent(itemId)}&quality=${qualityToUse}`),
-        fetch(`${BACKEND2}/api/prices?itemId=${encodeURIComponent(itemId)}&quality=${qualityToUse}`)
-      ]);
+      const url = `${BACKEND3}/api/precios-unidos?itemId=${encodeURIComponent(itemId)}&quality=${qualityToUse}${force ? '&force=1' : ''}`;
+      const r = await fetchWithTimeout(url, {}, 9000);
 
-      let json1 = null;
-      let json2 = null;
-
-      if (r1.status === 'fulfilled') {
-        try { json1 = await r1.value.json(); } catch (e) { json1 = null; console.warn('backend1 parse error', e); }
-      } else {
-        console.warn('backend1 error', r1.reason);
+      if (!r.ok) {
+        // intentar parsear mensaje de error si viene
+        let errText = `Error desde backend3: ${r.status} ${r.statusText}`;
+        try {
+          const errJson = await r.json();
+          if (errJson?.error) errText += ` - ${errJson.error}`;
+        } catch (_) {}
+        throw new Error(errText);
       }
 
-      if (r2.status === 'fulfilled') {
-        try { json2 = await r2.value.json(); } catch (e) { json2 = null; console.warn('backend2 parse error', e); }
-      } else {
-        console.warn('backend2 error', r2.reason);
+      const full = await r.json();
+
+      // backend3 está pensado para devolver: { itemId, quality, fromCache, precios, sources }
+      const precios = full.precios || full.precio || full.precios_unidos || null;
+
+      if (!precios) {
+        // si por alguna razón devuelven dos backends raw (inusual), puedes normalizar aquí
+        throw new Error('La respuesta del backend no contiene `precios` (objeto mergeado).');
       }
 
-      setRawBackend1(json1);
-      setRawBackend2(json2);
+      // Guardar info útil para UI
+      setMergedPrices(precios);
+      setFromCache(Boolean(full.fromCache));
+      setLastSources(full.sources || null);
 
-      const norm1 = normalizeBackend1(json1);
-      const norm2 = normalizeBackend2(json2);
+      // Si el backend3 incluye raw payloads por compatibilidad (no recomendado),
+      // aquí los dejamos en estado para depuración. Por defecto backend3 no envía raw.
+      if (full.rawBackend1) setRawBackend1(full.rawBackend1);
+      if (full.rawBackend2) setRawBackend2(full.rawBackend2);
 
-      const merged = mergeNormalized(norm1, norm2);
-      setMergedPrices(merged);
     } catch (err) {
-      console.error('Error fetching prices:', err);
+      console.error('Error fetching prices (backend3):', err);
+      setError(err.message || String(err));
     } finally {
       setLoadingPrices(false);
     }
   }
 
-  // --- Normalizadores ---
-  function normalizeBackend1(resp) {
-    const out = {};
-    if (!resp) return out;
-    const payload = resp.prices || resp; // backend1: { item, prices: {...} }
-    if (!payload || typeof payload !== 'object') return out;
+  // --- (Opcional) antiguas funciones de normalización / merge en frontend ---
+  // Las dejo por si quieres debuggear o volver a procesar datos localmente.
+  // NOTA: Con backend3 estas funciones NO son necesarias porque ya devuelve el objeto mergeado.
+  /*
+  function normalizeBackend1(resp) { ... }
+  function normalizeBackend2(resp) { ... }
+  function mergeNormalized(n1, n2) { ... }
+  */
 
-    for (const [city, info] of Object.entries(payload)) {
-      if (!city) continue;
-      const sellArray = info.sell || info.orden_venta || [];
-      const buyArray = info.buy || info.orden_compra || [];
-      out[city] = { sell: [], buy: [], actualizado: info.updated || info.actualizado || null };
-
-      for (const s of sellArray) {
-        const precio = (s.price ?? s.precio ?? s.sell_price_min ?? s.sell_price) || 0;
-        const fecha = s.date ?? s.fecha ?? s.sell_price_min_date ?? new Date().toISOString();
-        out[city].sell.push({ precio: Number(precio), fecha: fecha, fuentes: [SRC.backend1] });
-      }
-      for (const b of buyArray) {
-        const precio = (b.price ?? b.precio ?? b.buy_price_max ?? b.buy_price) || 0;
-        const fecha = b.date ?? b.fecha ?? b.buy_price_max_date ?? new Date().toISOString();
-        out[city].buy.push({ precio: Number(precio), fecha: fecha, fuentes: [SRC.backend1] });
-      }
-    }
-    return out;
-  }
-
-  function normalizeBackend2(resp) {
-    const out = {};
-    if (!resp) return out;
-    const payload = resp.precios || resp.prices || resp; // backend2: { updated, precios: {...} }
-    if (!payload || typeof payload !== 'object') return out;
-
-    for (const [city, info] of Object.entries(payload)) {
-      if (!city) continue;
-      const sellArray = info.orden_venta || info.sell || [];
-      const buyArray = info.orden_compra || info.buy || [];
-      out[city] = { sell: [], buy: [], actualizado: info.actualizado || info.updated || null };
-
-      for (const s of sellArray) {
-        const precio = (s.precio ?? s.price ?? s.sell_price_min ?? s) || 0;
-        const fecha = s.fecha ?? s.date ?? s.sell_price_min_date ?? new Date().toISOString();
-        out[city].sell.push({ precio: Number(precio), fecha: fecha, fuentes: [SRC.backend2] });
-      }
-      for (const b of buyArray) {
-        const precio = (b.precio ?? b.price ?? b.buy_price_max ?? b) || 0;
-        const fecha = b.fecha ?? b.date ?? b.buy_price_max_date ?? new Date().toISOString();
-        out[city].buy.push({ precio: Number(precio), fecha: fecha, fuentes: [SRC.backend2] });
-      }
-    }
-    return out;
-  }
-
-  // --- mergeNormalized ---
-  function mergeNormalized(n1, n2) {
-    const cities = new Set([...Object.keys(n1 || {}), ...Object.keys(n2 || {})]);
-    const result = {};
-
-    for (const city of cities) {
-      const listSell = [];
-      const listBuy = [];
-
-      const addToList = (targetList, entry) => {
-        const key = `${entry.precio}||${new Date(entry.fecha).toISOString()}`;
-        const existing = targetList.find(x => x._key === key);
-        if (existing) {
-          for (const f of entry.fuentes) {
-            if (!existing.fuentes.includes(f)) existing.fuentes.push(f);
-          }
-        } else {
-          targetList.push({ ...entry, _key: key });
-        }
-      };
-
-      const srcSell1 = (n1[city]?.sell) || [];
-      const srcSell2 = (n2[city]?.sell) || [];
-      const srcBuy1 = (n1[city]?.buy) || [];
-      const srcBuy2 = (n2[city]?.buy) || [];
-
-      srcSell1.forEach(s => addToList(listSell, s));
-      srcSell2.forEach(s => addToList(listSell, s));
-      srcBuy1.forEach(b => addToList(listBuy, b));
-      srcBuy2.forEach(b => addToList(listBuy, b));
-
-      listSell.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
-      listBuy.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
-
-      const sellFinal = listSell.slice(0, MAX_PER_CITY).map(({ _key, ...rest }) => rest);
-      const buyFinal = listBuy.slice(0, MAX_PER_CITY).map(({ _key, ...rest }) => rest);
-
-      const candDates = [
-        n1[city]?.actualizado,
-        n2[city]?.actualizado,
-        ...(sellFinal.map(x => x.fecha)),
-        ...(buyFinal.map(x => x.fecha))
-      ].filter(Boolean).map(d => new Date(d));
-      const updated = candDates.length ? new Date(Math.max(...candDates.map(d => d.getTime()))) : null;
-
-      result[city] = {
-        orden_venta: sellFinal,
-        orden_compra: buyFinal,
-        actualizado: updated ? updated.toISOString() : null
-      };
-    }
-
-    const ordered = {};
-    Object.keys(result).sort().forEach(k => ordered[k] = result[k]);
-    return ordered;
-  }
-
-  // Helpers
+  // Helpers de fecha
   function formatDateIso(iso) {
     if (!iso) return '';
     try {
@@ -250,7 +187,7 @@ export default function Market() {
     return `${days}d ${hours % 24}h`;
   }
 
-  // Render
+  // ---- RENDER ----
   return (
     <div className="container">
       <h1>🛒 Market</h1>
@@ -268,7 +205,7 @@ export default function Market() {
             {results.length > 0 && (
               <div className="grid" style={{ marginTop: 10 }}>
                 {results.map(it => (
-                  <ItemCard key={it.id || it.UniqueName} item={it} onSelect={selectItem} />
+                  <ItemCard key={it.id || it.UniqueName || it.ID} item={it} onSelect={selectItem} />
                 ))}
               </div>
             )}
@@ -294,19 +231,40 @@ export default function Market() {
               </div>
             </div>
 
-            <div>
-              <label className="small">Encantamiento: </label>
-              <select value={quality} onChange={(e) => {
-                const q = Number(e.target.value);
-                setQuality(q);
-                if (selectedItem) fetchPricesForItem(selectedItem, q);
-              }}>
-                <option value={1}>Base</option>
-                <option value={2}>+1</option>
-                <option value={3}>+2</option>
-                <option value={4}>+3</option>
-                <option value={5}>+4</option>
-              </select>
+            <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+              <div>
+                <label className="small">Encantamiento: </label>
+                <select value={quality} onChange={(e) => {
+                  const q = Number(e.target.value);
+                  setQuality(q);
+                  if (selectedItem) fetchPricesForItem(selectedItem, q);
+                }}>
+                  <option value={1}>Base</option>
+                  <option value={2}>+1</option>
+                  <option value={3}>+2</option>
+                  <option value={4}>+3</option>
+                  <option value={5}>+4</option>
+                </select>
+              </div>
+
+              <div>
+                <button
+                  onClick={() => fetchPricesForItem(selectedItem, quality)}
+                  className="btn"
+                  style={{ padding: '6px 10px', borderRadius: 6 }}
+                >
+                  🔄 Actualizar
+                </button>
+
+                <button
+                  onClick={() => fetchPricesForItem(selectedItem, quality, { force: true })}
+                  title="Forzar refresh (ignora cache)"
+                  className="btn"
+                  style={{ marginLeft: 8, padding: '6px 8px', borderRadius: 6 }}
+                >
+                  ♻ Forzar
+                </button>
+              </div>
             </div>
           </div>
 
@@ -316,13 +274,18 @@ export default function Market() {
               <>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <h3>💹 Movimientos por ciudad</h3>
-                  <div className="small">① backend1 &nbsp;&nbsp; ② backend2</div>
+                  <div className="small">
+                    {fromCache ? <span>Cache ✅</span> : <span>Directo ✅</span>} &nbsp;&nbsp;
+                    <span>① backend1 &nbsp;&nbsp; ② backend2</span>
+                  </div>
                 </div>
 
-                {!mergedPrices && <div className="small">Selecciona un ítem para ver precios.</div>}
+                {error && <div style={{ color: 'crimson', marginTop: 8 }}>Error: {error}</div>}
+                {!mergedPrices && !error && <div className="small">Selecciona un ítem para ver precios.</div>}
 
                 {mergedPrices && (
                   <div style={{ marginTop: 8 }}>
+                    {Object.entries(mergedPrices).length === 0 && <div className="small">No hay movimientos registrados.</div>}
                     {Object.entries(mergedPrices).map(([city, obj]) => (
                       <div key={city} style={{ padding: 8, marginBottom: 8, borderRadius: 8, background: 'rgba(255,255,255,0.03)' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -333,8 +296,8 @@ export default function Market() {
                         <div style={{ display: 'flex', gap: 12, marginTop: 6 }}>
                           <div style={{ flex: 1 }}>
                             <div className="small">Orden venta (últimos {MAX_PER_CITY})</div>
-                            {obj.orden_venta.length === 0 && <div className="small">—</div>}
-                            {obj.orden_venta.map((o, idx) => (
+                            {(!obj.orden_venta || obj.orden_venta.length === 0) && <div className="small">—</div>}
+                            {obj.orden_venta && obj.orden_venta.map((o, idx) => (
                               <div key={idx} className="result-row" style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                                 <span style={{ width: 8 }}>•</span>
                                 <div style={{ flex: 1 }}>{(o.precio || 0).toLocaleString()}</div>
@@ -348,8 +311,8 @@ export default function Market() {
 
                           <div style={{ flex: 1 }}>
                             <div className="small">Orden compra (últimos {MAX_PER_CITY})</div>
-                            {obj.orden_compra.length === 0 && <div className="small">—</div>}
-                            {obj.orden_compra.map((o, idx) => (
+                            {(!obj.orden_compra || obj.orden_compra.length === 0) && <div className="small">—</div>}
+                            {obj.orden_compra && obj.orden_compra.map((o, idx) => (
                               <div key={idx} className="result-row" style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                                 <span style={{ width: 8 }}>•</span>
                                 <div style={{ flex: 1 }}>{(o.precio || 0).toLocaleString()}</div>
@@ -363,6 +326,26 @@ export default function Market() {
                         </div>
                       </div>
                     ))}
+                  </div>
+                )}
+
+                {/* Depuración opcional: mostrar rawBackend1/rawBackend2 si existen */}
+                {(rawBackend1 || rawBackend2) && (
+                  <div style={{ marginTop: 12 }}>
+                    <div className="small">Raw backends (debug)</div>
+                    {rawBackend1 && <pre style={{ maxHeight: 120, overflow: 'auto' }}>{JSON.stringify(rawBackend1, null, 2)}</pre>}
+                    {rawBackend2 && <pre style={{ maxHeight: 120, overflow: 'auto' }}>{JSON.stringify(rawBackend2, null, 2)}</pre>}
+                  </div>
+                )}
+
+                {/* mostrar info de fuentes si está */}
+                {lastSources && (
+                  <div style={{ marginTop: 8 }}>
+                    <div className="small">Fuentes:</div>
+                    <div className="small">
+                      Backend1: {lastSources.backend1 ? '✅' : '❌'} &nbsp;&nbsp;
+                      Backend2: {lastSources.backend2 ? '✅' : '❌'}
+                    </div>
                   </div>
                 )}
               </>
